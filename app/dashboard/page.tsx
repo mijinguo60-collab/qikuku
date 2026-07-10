@@ -1,0 +1,74 @@
+import { cookies } from 'next/headers';
+import { getDashboardSummary } from '@/lib/dashboard-data';
+import { Brain, FileText, FolderOpen, MessageSquare, Image, TrendingUp, Lightbulb, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+
+export default function DashboardPage() {
+  const store = cookies();
+  const userCookie = store.get('qikuku_user');
+  if (!userCookie) return null;
+  const user = JSON.parse(userCookie.value);
+  const summary = getDashboardSummary(user.companyId);
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-text-primary mb-1">欢迎回来，{user.name}</h1>
+        <p className="text-sm text-text-secondary">
+          {summary.companyName} 的知识库今天新增了 {summary.docCount} 条可调用知识
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { icon: FileText, label: '文件总数', value: summary.docCount, color: 'text-accent-blue' },
+          { icon: FolderOpen, label: '知识空间', value: summary.spaceCount, color: 'text-accent-purple' },
+          { icon: Lightbulb, label: '可用 Skill', value: summary.skillCount, color: 'text-accent-cyan' },
+          { icon: Brain, label: 'AI 就绪', value: '✓', color: 'text-success' },
+        ].map((s, i) => (
+          <div key={i} className="card p-5">
+            <p className="text-xs text-text-muted mb-1">{s.label}</p>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="card p-6">
+          <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+            <MessageSquare className="w-4 h-4" /> 热门问题
+          </h2>
+          <div className="space-y-2">
+            {['客户嫌代运营服务太贵怎么回复？', '探店拍摄的标准流程是什么？', '如何提高直播间转化率？', '新员工培训需要多久？'].map((q, i) => (
+              <Link key={i} href="/dashboard/chat" className="block px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all">
+                {q}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" /> 快捷操作
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { href: '/dashboard/chat', icon: MessageSquare, label: 'AI 问答', color: 'bg-accent-blue/10 text-accent-blue' },
+              { href: '/dashboard/skill-chat', icon: Brain, label: '管理诊断', color: 'bg-accent-purple/10 text-accent-purple' },
+              { href: '/dashboard/images', icon: Image, label: 'AI 做图', color: 'bg-accent-cyan/10 text-accent-cyan' },
+              { href: '/dashboard/files', icon: FileText, label: '上传文件', color: 'bg-success/10 text-success' },
+            ].map((a, i) => (
+              <Link key={i} href={a.href}
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-secondary hover:bg-surface-hover transition-all text-center">
+                <div className={`w-10 h-10 rounded-xl ${a.color} flex items-center justify-center`}>
+                  <a.icon className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-medium text-text-primary">{a.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

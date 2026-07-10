@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#F7F7F8"/>
+  <circle cx="512" cy="400" r="100" fill="none" stroke="#E5E5E7" stroke-width="2"/>
+  <circle cx="512" cy="400" r="60" fill="#E5E5E7" opacity="0.5"/>
+  <text x="512" y="560" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="20" fill="#A1A1AA">AI 生成的图片</text>
+  <text x="512" y="590" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" fill="#A1A1AA">纯白背景 · 高级极简 · 企业 AI 大脑视觉</text>
+</svg>

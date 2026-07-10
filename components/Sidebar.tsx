@@ -1,0 +1,94 @@
+'use client';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Lock, Settings, LogOut, ChevronLeft } from 'lucide-react';
+import { useState } from 'react';
+
+const menuGroups = [
+  {
+    label: '核心功能',
+    items: [
+      { href: '/dashboard', icon: LayoutDashboard, label: '工作台' },
+      { href: '/dashboard/knowledge-spaces', icon: FolderOpen, label: '知识空间' },
+      { href: '/dashboard/files', icon: FileText, label: '文件中心' },
+      { href: '/dashboard/chat', icon: MessageSquare, label: 'AI 问答' },
+      { href: '/dashboard/skill-chat', icon: Sparkles, label: '管理 Skill 问答' },
+      { href: '/dashboard/skills', icon: Lightbulb, label: 'Skill 中心' },
+      { href: '/dashboard/images', icon: Image, label: 'AI 做图' },
+      { href: '/dashboard/assets', icon: Library, label: '图片素材库' },
+    ],
+  },
+  {
+    label: '业务工具',
+    items: [
+      { href: '/dashboard/content', icon: PenTool, label: '内容生成' },
+      { href: '/dashboard/training', icon: GraduationCap, label: '员工培训' },
+      { href: '/dashboard/sales', icon: TrendingUp, label: '销售助手' },
+      { href: '/dashboard/support', icon: Headphones, label: '客服助手' },
+    ],
+  },
+  {
+    label: '管理',
+    items: [
+      { href: '/dashboard/permissions', icon: Shield, label: '权限管理' },
+      { href: '/dashboard/security', icon: Lock, label: '数据安全' },
+      { href: '/dashboard/settings', icon: Settings, label: '系统设置' },
+    ],
+  },
+];
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} h-screen sticky top-0 bg-surface-tertiary border-r border-border-light flex flex-col transition-all duration-200 flex-shrink-0 overflow-hidden`}>
+      {/* Logo */}
+      <Link href="/dashboard" className="flex items-center gap-2.5 px-4 h-14 border-b border-border-light flex-shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-text-primary flex items-center justify-center flex-shrink-0">
+          <Brain className="w-4 h-4 text-white" />
+        </div>
+        {!collapsed && <span className="text-sm font-bold text-text-primary whitespace-nowrap">企库库</span>}
+      </Link>
+
+      {/* Menu */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        {menuGroups.map((group, gi) => (
+          <div key={gi}>
+            {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{group.label}</p>}
+            <div className="space-y-0.5">
+              {group.items.map(item => {
+                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                return (
+                  <Link key={item.href} href={item.href}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
+                      isActive
+                        ? 'bg-white text-text-primary font-medium shadow-light'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                    }`}
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Bottom */}
+      <div className="border-t border-border-light p-2 space-y-1">
+        <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all w-full">
+          <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          {!collapsed && <span className="whitespace-nowrap">收起菜单</span>}
+        </button>
+        <Link href="/auth/login" className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-danger hover:bg-danger/5 transition-all">
+          <LogOut className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span className="whitespace-nowrap">退出登录</span>}
+        </Link>
+      </div>
+    </aside>
+  );
+}

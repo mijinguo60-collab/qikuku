@@ -34,3 +34,31 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/app/generated/prisma
+
+# local secrets
+.env
+.env.local
+.env.*.local
+
+# build / dependencies
+node_modules
+.next
+.vercel
+.DS_Store
+
+# local files
+uploads
+outputs
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# prisma local sqlite temporary files
+prisma/dev.db
+prisma/dev.db-shm
+prisma/dev.db-wal
+*.db-shm
+*.db-wal
