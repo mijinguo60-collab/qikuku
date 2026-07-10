@@ -9,7 +9,7 @@ export default function SettingsPage() {
   const user = JSON.parse(cookie.value);
   const db = getDb();
 
-  const company: any = db.prepare('SELECT * FROM Company WHERE id = ?').get(user.companyId) || {};
+  const company: any = db.prepare('SELECT * FROM "Company" WHERE id = ?').get(user.companyId) || {};
 
   return (
     <div className="p-8 max-w-3xl mx-auto animate-fade-in">

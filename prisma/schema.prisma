@@ -14,7 +14,7 @@ model User {
   role         String         @default("member")
   companyId    String
   createdAt    DateTime       @default(now())
-  company      Company        @relation(fields: [companyId], references: [id])
+  company      Company?        @relation(fields: [companyId], references: [id])
   chatSessions ChatSession[]
   imageGenerations ImageGeneration[]
   auditLogs    AuditLog[]
@@ -51,7 +51,7 @@ model KnowledgeSpace {
   visibility  String     @default("all")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  company     Company    @relation(fields: [companyId], references: [id])
+  company     Company?    @relation(fields: [companyId], references: [id])
   documents   Document[]
 }
 
@@ -71,7 +71,7 @@ model Document {
   expiresAt        DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
-  company          Company          @relation(fields: [companyId], references: [id])
+  company          Company?          @relation(fields: [companyId], references: [id])
   knowledgeSpace   KnowledgeSpace   @relation(fields: [knowledgeSpaceId], references: [id])
   chunks           KnowledgeChunk[]
 }
@@ -85,7 +85,7 @@ model KnowledgeChunk {
   metadata   String?
   createdAt  DateTime @default(now())
   document   Document @relation(fields: [documentId], references: [id])
-  company    Company  @relation(fields: [companyId], references: [id])
+  company    Company?  @relation(fields: [companyId], references: [id])
 }
 
 model ChatSession {
@@ -97,7 +97,7 @@ model ChatSession {
   title     String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  company   Company       @relation(fields: [companyId], references: [id])
+  company   Company?       @relation(fields: [companyId], references: [id])
   user      User          @relation(fields: [userId], references: [id])
   messages  ChatMessage[]
 }
@@ -152,7 +152,7 @@ model ImageGeneration {
   metadata        String?
   status          String   @default("pending")
   createdAt       DateTime @default(now())
-  company         Company  @relation(fields: [companyId], references: [id])
+  company         Company?  @relation(fields: [companyId], references: [id])
   user            User     @relation(fields: [userId], references: [id])
 }
 
@@ -166,12 +166,12 @@ model Asset {
   tags       String?
   isFavorite Boolean  @default(false)
   createdAt  DateTime @default(now())
-  company    Company  @relation(fields: [companyId], references: [id])
+  company    Company?  @relation(fields: [companyId], references: [id])
 }
 
 model AuditLog {
   id         String   @id @default(uuid())
-  companyId  String
+  companyId  String?
   userId     String?
   action     String
   targetType String?
@@ -179,7 +179,7 @@ model AuditLog {
   ip         String?
   result     String?
   createdAt  DateTime @default(now())
-  company    Company  @relation(fields: [companyId], references: [id])
+  company    Company?  @relation(fields: [companyId], references: [id])
   user       User?    @relation(fields: [userId], references: [id])
 }
 
@@ -193,7 +193,7 @@ model ApiCredential {
   extraConfig  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  company      Company  @relation(fields: [companyId], references: [id])
+  company      Company?  @relation(fields: [companyId], references: [id])
   @@unique([companyId, provider])
 }
 
@@ -213,7 +213,7 @@ model AiCallLog {
   errorMessage     String?
   sourcesCount     Int?
   createdAt        DateTime @default(now())
-  company          Company  @relation(fields: [companyId], references: [id])
+  company          Company?  @relation(fields: [companyId], references: [id])
   user             User?    @relation(fields: [userId], references: [id])
 }
 

@@ -15,7 +15,7 @@ export default function KnowledgeSpacesPage() {
   const db = getDb();
 
   const spaces = db.prepare(
-    'SELECT ks.*, (SELECT COUNT(*) FROM Document d WHERE d.knowledgeSpaceId = ks.id) as fileCount FROM KnowledgeSpace ks WHERE ks.companyId = ? ORDER BY ks.createdAt DESC'
+    'SELECT ks.*, (SELECT COUNT(*) FROM "Document" d WHERE d.knowledgeSpaceId = ks.id) as fileCount FROM "KnowledgeSpace" ks WHERE ks.companyId = ? ORDER BY ks.createdAt DESC'
   ).all(user.companyId) as SpaceRow[];
 
   return (

@@ -17,7 +17,8 @@
     "check:permissions": "node scripts/check-permissions.mjs",
     "check:commercial": "node scripts/check-commercial.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
-    "check:production": "node scripts/check-production.mjs"
+    "check:production": "node scripts/check-production.mjs",
+    "check:db-tables": "node scripts/check-db-tables.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

@@ -62,8 +62,8 @@ export async function authenticateUser(email: string, password: string): Promise
   try {
     const db = getDb();
     const stmt = db.prepare(`
-      SELECT u.id, u.name, u.email, u.passwordHash, u.role, u.companyId, c.name as companyName
-      FROM User u JOIN Company c ON u.companyId = c.id
+      SELECT u.id, u.name, u.email, u."passwordHash", u.role, u."companyId", c.name as "companyName"
+      FROM "User" u JOIN "Company" c ON u."companyId" = c.id
       WHERE u.email = ?
     `);
     const row = await stmt.get(email);
@@ -104,8 +104,8 @@ export async function authenticateUser(email: string, password: string): Promise
 export function getUserById(id: string): User | null {
   const db = getDb();
   const row = db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u.companyId, c.name as companyName
-    FROM User u JOIN Company c ON u.companyId = c.id
+    SELECT u.id, u.name, u.email, u.role, u."companyId", c.name as "companyName"
+    FROM "User" u JOIN "Company" c ON u."companyId" = c.id
     WHERE u.id = ?
   `).get(id) as any;
 
@@ -122,5 +122,5 @@ export function getUserById(id: string): User | null {
 
 export function getCompany(id: string): Company | null {
   const db = getDb();
-  return db.prepare('SELECT id, name, logo, industry FROM Company WHERE id = ?').get(id) as any;
+  return db.prepare('SELECT id, name, logo, industry FROM "Company" WHERE id = ?').get(id) as any;
 }

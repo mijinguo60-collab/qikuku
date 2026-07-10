@@ -32,6 +32,6 @@ export async function logAction(params: {
 export function getAuditLogs(companyId: string, limit = 50) {
   const db = getDb();
   return db.prepare(
-    'SELECT a.*, u.name as userName FROM AuditLog a LEFT JOIN User u ON a.userId = u.id WHERE a.companyId = ? ORDER BY a.createdAt DESC LIMIT ?'
+    'SELECT a.*, u.name as userName FROM "AuditLog" a LEFT JOIN "User" u ON a.userId = u.id WHERE a.companyId = ? ORDER BY a.createdAt DESC LIMIT ?'
   ).all(companyId, limit);
 }
