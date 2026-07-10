@@ -16,7 +16,8 @@ export async function POST(request: Request) {
       httpOnly: true, secure: false, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60, path: '/',
     });
     return response;
-  } catch {
-    return NextResponse.json({ error: '服务器错误' }, { status: 500 });
+  } catch (e: any) {
+    console.error('[LOGIN] Server error:', e.message, e.stack);
+    return NextResponse.json({ error: '服务器错误: ' + (e.message || '未知错误') }, { status: 500 });
   }
 }
