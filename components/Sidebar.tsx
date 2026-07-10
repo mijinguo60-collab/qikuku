@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Lock, Settings, LogOut, ChevronLeft } from 'lucide-react';
+import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Lock, Settings, LogOut, ChevronLeft, UserCheck } from 'lucide-react';
+import { isSidebarGroupVisible } from '@/lib/roles';
 import { useState } from 'react';
 
 const menuGroups = [
@@ -30,7 +31,6 @@ const menuGroups = [
   {
     label: '管理',
     items: [
-      { href: '/dashboard/permissions', icon: Shield, label: '权限管理' },
       { href: '/dashboard/security', icon: Lock, label: '数据安全' },
       { href: '/dashboard/settings', icon: Settings, label: '系统设置' },
     ],
@@ -40,6 +40,15 @@ const menuGroups = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  // Read user role from cookie
+  function getUserRole(): string {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.match(/(?:^|;\s*)qikuku_user=([^;]*)/);
+    if (!match) return '';
+    try { return JSON.parse(decodeURIComponent(match[1])).role || ''; } catch { return ''; }
+  }
+  const userRole = getUserRole();
   const router = useRouter();
 
   async function handleLogout() {
@@ -60,7 +69,7 @@ export default function Sidebar() {
 
       {/* Menu */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-        {menuGroups.map((group, gi) => (
+        {menuGroups.filter(g => isSidebarGroupVisible(userRole, g.label)).map((group, gi) => (
           <div key={gi}>
             {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{group.label}</p>}
             <div className="space-y-0.5">

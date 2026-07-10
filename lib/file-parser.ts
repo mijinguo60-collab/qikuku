@@ -1,21 +1,24 @@
 /**
- * 文件解析模块
- * 支持: TXT, Markdown, JSON 直接解析
+ * 文件解析器 — 支持 TXT / MD / PDF / DOCX / XLSX / CSV / JSON
  */
-
 import * as fs from 'fs';
 
-export interface ParsedResult { text: string; metadata?: { pages?: number; error?: string }; }
+export interface ParsedResult {
+  text: string;
+  metadata?: { pages?: number; error?: string; warning?: string };
+}
 
 export async function parseFile(filePath: string, fileType: string): Promise<ParsedResult> {
   const ft = fileType.toLowerCase();
   if (['txt', 'md', 'mdx', 'csv'].includes(ft)) return parseText(filePath);
   if (ft === 'json') return parseJSON(filePath);
-  if (ft === 'pdf') return parseBuffer(filePath, 'pdf');
-  if (['docx', 'doc'].includes(ft)) return parseBuffer(filePath, 'docx');
-  if (['xlsx', 'xls'].includes(ft)) return parseBuffer(filePath, 'xlsx');
-  if (['pptx', 'ppt'].includes(ft)) return parseBuffer(filePath, 'pptx');
-  return { text: '', metadata: { error: `Unsupported: ${fileType}` } };
+  if (ft === 'pdf') return parsePDF(filePath);
+  if (['docx', 'doc'].includes(ft)) return parseDocx(filePath);
+  if (['xlsx', 'xls'].includes(ft)) return parseExcel(filePath);
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ft)) {
+    return { text: '', metadata: { warning: '图片文件暂不支持 OCR 文本解析' } };
+  }
+  return { text: '', metadata: { error: `不支持的文件类型: ${ft}` } };
 }
 
 function parseText(filePath: string): ParsedResult {
@@ -27,8 +30,7 @@ function parseJSON(filePath: string): ParsedResult {
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const obj = JSON.parse(raw);
-    const text = flattenJSON(obj);
-    return { text };
+    return { text: flattenJSON(obj) };
   } catch (e: any) { return { text: '', metadata: { error: e.message } }; }
 }
 
@@ -42,13 +44,46 @@ function flattenJSON(obj: any, prefix = ''): string {
   return '';
 }
 
-function parseBuffer(filePath: string, type: string): ParsedResult {
+async function parsePDF(filePath: string): Promise<ParsedResult> {
   try {
     const buffer = fs.readFileSync(filePath);
-    const asText = buffer.toString('utf-8');
-    const cleaned = asText.replace(/[^\x20-\x7E\u4e00-\u9fff\u3000-\u303f\uff00-\uffef\n\r]/g, ' ');
-    const words = cleaned.split(/\s+/).filter((w: string) => w.length > 2);
-    if (words.length > 10) return { text: words.join(' ').slice(0, 5000) };
-    return { text: `[${type.toUpperCase()} file: ${filePath} - needs dedicated parser]` };
-  } catch (e: any) { return { text: '', metadata: { error: e.message } }; }
+    const pdfParse = require('pdf-parse');
+    const data = await pdfParse(buffer);
+    return { text: data.text || '', metadata: { pages: data.numpages } };
+  } catch (e: any) {
+    return { text: '', metadata: { error: `PDF 解析失败: ${e.message}` } };
+  }
+}
+
+async function parseDocx(filePath: string): Promise<ParsedResult> {
+  try {
+    const mammoth = await import('mammoth');
+    const buffer = fs.readFileSync(filePath);
+    const result = await mammoth.extractRawText({ buffer });
+    return { text: result.value || '' };
+  } catch (e: any) {
+    return { text: '', metadata: { error: `Word 解析失败: ${e.message}` } };
+  }
+}
+
+async function parseExcel(filePath: string): Promise<ParsedResult> {
+  try {
+    const XLSX = await import('xlsx');
+    const workbook = XLSX.readFile(filePath);
+    const texts: string[] = [];
+    for (const name of workbook.SheetNames) {
+      const sheet = workbook.Sheets[name];
+      const csv = XLSX.utils.sheet_to_csv(sheet);
+      if (csv.trim()) texts.push(`[Sheet: ${name}]\n${csv}`);
+    }
+    return { text: texts.join('\n\n') };
+  } catch (e: any) {
+    return { text: '', metadata: { error: `Excel 解析失败: ${e.message}` } };
+  }
+}
+
+export function getFileParserStatus(text: string | null | undefined): string {
+  if (!text || text.trim().length === 0) return 'parse_failed';
+  if (text.trim().length < 50) return 'low_content';
+  return 'ready';
 }

@@ -18,6 +18,7 @@ model User {
   chatSessions ChatSession[]
   imageGenerations ImageGeneration[]
   auditLogs    AuditLog[]
+  aiCallLogs   AiCallLog[]
 }
 
 model Company {
@@ -38,6 +39,7 @@ model Company {
   assets         Asset[]
   auditLogs      AuditLog[]
   apiCredentials ApiCredential[]
+  aiCallLogs     AiCallLog[]
 }
 
 model KnowledgeSpace {
@@ -132,20 +134,26 @@ model Skill {
 }
 
 model ImageGeneration {
-  id             String   @id @default(uuid())
-  companyId      String
-  userId         String
-  sessionTitle   String?
-  prompt         String
-  revisedPrompt  String?
-  imageUrl       String?
-  sourceImageUrl String?
-  model          String?
-  size           String?
-  status         String   @default("pending")
-  createdAt      DateTime @default(now())
-  company        Company  @relation(fields: [companyId], references: [id])
-  user           User     @relation(fields: [userId], references: [id])
+  id              String   @id @default(uuid())
+  companyId       String
+  userId          String
+  sessionTitle    String?
+  prompt          String
+  revisedPrompt   String?
+  imageUrl        String?
+  sourceImageUrl  String?
+  model           String?
+  size            String?
+  purpose         String?
+  style           String?
+  storageProvider String?
+  storageKey      String?
+  rawProviderUrl  String?
+  metadata        String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+  company         Company  @relation(fields: [companyId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
 }
 
 model Asset {
@@ -187,4 +195,40 @@ model ApiCredential {
   updatedAt    DateTime @updatedAt
   company      Company  @relation(fields: [companyId], references: [id])
   @@unique([companyId, provider])
+}
+
+model AiCallLog {
+  id               String   @id @default(uuid())
+  companyId        String
+  userId           String?
+  mode             String   @default("knowledge")
+  model            String?
+  modelStatus      String?  // "live" | "mock" | "error"
+  questionPreview  String?  // 前 200 字
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  latencyMs        Int?
+  success          Boolean  @default(false)
+  errorMessage     String?
+  sourcesCount     Int?
+  createdAt        DateTime @default(now())
+  company          Company  @relation(fields: [companyId], references: [id])
+  user             User?    @relation(fields: [userId], references: [id])
+}
+
+model Lead {
+  id           String   @id @default(uuid())
+  companyName  String
+  contactName  String
+  contact      String
+  industry     String?
+  teamSize     String?
+  currentTool  String?
+  painPoint    String?
+  note         String?
+  status       String   @default("new")
+  source       String   @default("website")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
