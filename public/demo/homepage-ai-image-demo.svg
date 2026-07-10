@@ -1,0 +1,52 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="frame" x1="111" y1="55" x2="1159" y2="665" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF"/>
+      <stop offset="1" stop-color="#F7F5FF"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="474" y1="170" x2="806" y2="536" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#55B8FF"/>
+      <stop offset="0.5" stop-color="#7777F7"/>
+      <stop offset="1" stop-color="#B471F7"/>
+    </linearGradient>
+    <linearGradient id="line" x1="388" y1="194" x2="892" y2="534" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8FCFFF" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#A882F6" stop-opacity="0.34"/>
+    </linearGradient>
+    <filter id="shadow" x="146" y="102" width="988" height="552" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#6676A7" flood-opacity="0.13"/>
+    </filter>
+    <filter id="glow" x="352" y="134" width="576" height="452" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="white"/>
+  <rect x="164" y="118" width="952" height="484" rx="36" fill="url(#frame)" filter="url(#shadow)"/>
+  <rect x="164.5" y="118.5" width="951" height="483" rx="35.5" stroke="#E5E7F1"/>
+  <circle cx="640" cy="360" r="176" fill="#7B7AF4" fill-opacity="0.12" filter="url(#glow)"/>
+  <g stroke="url(#line)" stroke-width="3" stroke-linecap="round">
+    <path d="M452 272L544 308L604 237L677 291L775 248L824 335L744 392L783 480L678 462L616 514L539 462L458 480L492 390L412 335L472 308"/>
+    <path d="M472 308L544 308L516 390L539 462"/>
+    <path d="M604 237L616 514"/>
+    <path d="M677 291L678 462"/>
+    <path d="M775 248L744 392L783 480"/>
+    <path d="M452 272L492 390L458 480"/>
+    <path d="M412 335L516 390L616 514L744 392L824 335"/>
+  </g>
+  <g fill="url(#brain)" stroke="white" stroke-width="5">
+    <circle cx="452" cy="272" r="15"/><circle cx="544" cy="308" r="18"/><circle cx="604" cy="237" r="15"/>
+    <circle cx="677" cy="291" r="22"/><circle cx="775" cy="248" r="15"/><circle cx="824" cy="335" r="18"/>
+    <circle cx="744" cy="392" r="19"/><circle cx="783" cy="480" r="15"/><circle cx="678" cy="462" r="21"/>
+    <circle cx="616" cy="514" r="15"/><circle cx="539" cy="462" r="19"/><circle cx="458" cy="480" r="15"/>
+    <circle cx="492" cy="390" r="21"/><circle cx="412" cy="335" r="15"/>
+  </g>
+  <circle cx="640" cy="363" r="76" fill="white" fill-opacity="0.9"/>
+  <circle cx="640" cy="363" r="54" fill="url(#brain)"/>
+  <path d="M608 361C608 341 624 325 644 325C664 325 680 341 680 361C680 381 664 397 644 397H616C611.582 397 608 393.418 608 389V361Z" fill="white" fill-opacity="0.94"/>
+  <path d="M634 347V377M654 347V377M622 362H666" stroke="#7278F2" stroke-width="5" stroke-linecap="round"/>
+  <g fill="#FFFFFF" fill-opacity="0.82">
+    <circle cx="307" cy="230" r="7"/><circle cx="964" cy="472" r="7"/><circle cx="942" cy="216" r="5"/><circle cx="344" cy="511" r="5"/>
+  </g>
+  <text x="640" y="184" text-anchor="middle" fill="#334155" font-family="Arial, 'PingFang SC', sans-serif" font-size="22" font-weight="700">企业 AI 大脑</text>
+  <text x="640" y="554" text-anchor="middle" fill="#7C8495" font-family="Arial, 'PingFang SC', sans-serif" font-size="15">知识连接 · 智能调用 · 持续进化</text>
+</svg>

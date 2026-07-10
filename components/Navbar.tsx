@@ -5,7 +5,14 @@ import { Menu, X, Brain } from 'lucide-react';
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const links = ['产品', '知识库', '管理 Skill', 'AI 做图', '安全', '价格'];
+  const links = [
+    { label: '产品', href: '#product' },
+    { label: '知识库', href: '#knowledge-base' },
+    { label: '管理 Skill', href: '#manage-skill' },
+    { label: 'AI 做图', href: '#ai-image' },
+    { label: '安全', href: '#security' },
+    { label: '价格', href: '#pricing' },
+  ];
 
   return (
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border-light">
@@ -21,8 +28,10 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden md:flex items-center gap-1">
-          {links.map(l => (
-            <button key={l} className="btn-ghost text-[13px]">{l}</button>
+          {links.map(({ label, href }) => (
+            <a key={href} href={href} className="btn-ghost text-[13px]">
+              {label}
+            </a>
           ))}
         </div>
 
@@ -37,8 +46,15 @@ export default function Navbar() {
       </div>
       {open && (
         <div className="md:hidden border-t border-border-light bg-white p-4 flex flex-col gap-2 animate-fade-in">
-          {links.map(l => (
-            <button key={l} className="btn-ghost text-left text-sm">{l}</button>
+          {links.map(({ label, href }) => (
+            <a
+              key={href}
+              href={href}
+              onClick={() => setOpen(false)}
+              className="btn-ghost text-left text-sm"
+            >
+              {label}
+            </a>
           ))}
           <hr className="my-2 border-border-light" />
           <Link href="/auth/login" className="btn-secondary text-center text-sm">登录</Link>

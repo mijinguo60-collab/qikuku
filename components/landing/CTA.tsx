@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 
 export default function CTA() {
   return (
-    <section className="max-w-7xl mx-auto px-6 py-24 md:py-32 text-center">
+    <section id="pricing" className="max-w-7xl mx-auto px-6 py-24 md:py-32 text-center scroll-mt-20">
       <div className="card max-w-2xl mx-auto p-12 md:p-16">
         <h2 className="text-3xl md:text-4xl font-bold text-text-primary mb-4 leading-tight">
           从第一份企业资料开始，<br />搭建你的企业 AI 大脑

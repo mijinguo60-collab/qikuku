@@ -43,7 +43,7 @@ export default function Hero() {
                 <div className="w-6 h-6 rounded-md bg-text-primary flex items-center justify-center">
                   <Brain className="w-3.5 h-3.5 text-white" />
                 </div>
-                <span className="text-xs font-semibold">诸城吃喝玩乐</span>
+                <span className="text-xs font-semibold">企业知识库 AI</span>
               </div>
               {['工作台', '知识空间', 'AI 问答', '管理 Skill', 'AI 做图', '设置'].map((item, i) => (
                 <div key={item} className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs ${i === 2 ? 'bg-white shadow-light text-text-primary font-medium' : 'text-text-secondary'}`}>
@@ -62,7 +62,7 @@ export default function Hero() {
                   <div className="bg-surface-secondary rounded-2xl rounded-tl-md px-4 py-3 max-w-[80%]">
                     <p className="text-sm text-text-primary">你好！我是企库库 AI。可以向我提问关于企业知识的任何问题。试试这些问题：</p>
                     <div className="mt-3 space-y-2">
-                      <div className="bg-white rounded-xl px-3 py-2 text-xs text-text-secondary cursor-pointer hover:bg-surface-hover transition-colors">📋 客户嫌我们的代运营服务太贵了，怎么回复？</div>
+                      <div className="bg-white rounded-xl px-3 py-2 text-xs text-text-secondary cursor-pointer hover:bg-surface-hover transition-colors">📋 新员工上手慢、企业知识分散，怎么建立一套可复用的标准知识体系？</div>
                       <div className="bg-white rounded-xl px-3 py-2 text-xs text-text-secondary cursor-pointer hover:bg-surface-hover transition-colors">📊 销售团队执行力差，问题在哪里？</div>
                       <div className="bg-white rounded-xl px-3 py-2 text-xs text-text-secondary cursor-pointer hover:bg-surface-hover transition-colors">📝 帮我制定新员工的培训计划</div>
                     </div>
@@ -70,7 +70,7 @@ export default function Hero() {
                 </div>
                 <div className="flex gap-3 justify-end">
                   <div className="bg-text-primary text-white rounded-2xl rounded-tr-md px-4 py-3 max-w-[80%]">
-                    <p className="text-sm">客户嫌我们的代运营服务太贵了，怎么回复？</p>
+                    <p className="text-sm">新员工上手慢、企业知识分散，怎么建立一套可复用的标准知识体系？</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -79,11 +79,11 @@ export default function Hero() {
                   </div>
                   <div className="space-y-3 max-w-[85%]">
                     <div className="bg-surface-secondary rounded-2xl rounded-tl-md px-4 py-3">
-                      <p className="text-sm font-medium mb-2">基于企业销售话术资料，建议如下回复：</p>
-                      <p className="text-sm text-text-secondary leading-relaxed">"我理解您的顾虑。让我帮您算一笔账：您一个火锅店客户平均消费100元，我们合作过的火锅店平均每月新增200+桌客人，也就是2万+的增量营收。我们的服务费只占不到5%..."</p>
+                      <p className="text-sm font-medium mb-2">基于企业知识库资料，建议如下：</p>
+                      <p className="text-sm text-text-secondary leading-relaxed">可以先把企业内部高频使用的信息分成产品资料、服务流程、常见问题、销售话术、培训 SOP、管理制度，统一沉淀进知识库并按主题分类。再通过 AI 问答调用，让新员工直接提问、快速获取标准答案；同时把分散在文档、聊天记录和老员工经验里的知识，变成可重复复用的企业资产。</p>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-text-muted">
-                      <div className="flex items-center gap-1"><FileText className="w-3 h-3" /><span>来源：本地生活商家销售话术.docx</span></div>
+                      <div className="flex items-center gap-1"><FileText className="w-3 h-3" /><span>来源：产品资料、培训 SOP、管理制度</span></div>
                       <span>·</span>
                       <span>可信度：高</span>
                     </div>

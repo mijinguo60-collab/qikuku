@@ -1,8 +1,9 @@
+import NextImage from 'next/image';
 import { Image, ArrowRight } from 'lucide-react';
 
 export default function ImageDemo() {
   return (
-    <section className="max-w-7xl mx-auto px-6 py-24 md:py-32">
+    <section id="ai-image" className="max-w-7xl mx-auto px-6 py-24 md:py-32 scroll-mt-20">
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-bold text-text-primary mb-4">像聊天一样做图</h2>
         <p className="text-text-secondary text-lg">不需要复杂表单，用自然语言描述你想要的设计</p>
@@ -24,15 +25,13 @@ export default function ImageDemo() {
             </div>
             <div className="flex-1">
               <div className="bg-surface-secondary rounded-2xl rounded-tl-md overflow-hidden">
-                <div className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-white shadow-light flex items-center justify-center">
-                      <Image className="w-10 h-10 text-accent-blue/30" />
-                    </div>
-                    <p className="text-xs text-text-muted">AI 生成的企业宣传图</p>
-                    <p className="text-[10px] text-text-muted mt-1">纯白背景 · Apple 风格 · 16:9</p>
-                  </div>
-                </div>
+                <NextImage
+                  src="/demo/homepage-ai-image-demo.svg"
+                  alt="企库库企业 AI 大脑宣传图示例"
+                  width={1280}
+                  height={720}
+                  className="w-full h-auto"
+                />
               </div>
               <div className="flex items-center gap-2 mt-2">
                 {['下载', '复制提示词', '继续编辑', '保存'].map(a => (

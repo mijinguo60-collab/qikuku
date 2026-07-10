@@ -6,14 +6,14 @@ export default function DemoSection() {
   const [tab, setTab] = useState(0);
 
   return (
-    <section id="demo" className="bg-surface-secondary border-y border-border-light">
+    <section id="knowledge-base" className="bg-surface-secondary border-y border-border-light scroll-mt-20">
       <div className="max-w-7xl mx-auto px-6 py-24 md:py-32">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-text-primary mb-4">看看企库库怎么工作</h2>
           <p className="text-text-secondary text-lg">两个模式，覆盖从日常问答到管理决策的所有场景</p>
         </div>
 
-        <div className="flex justify-center gap-2 mb-10">
+        <div id="manage-skill" className="flex justify-center gap-2 mb-10 scroll-mt-20">
           {['基础知识库问答', '管理 Skill 增强问答'].map((t, i) => (
             <button
               key={i}
@@ -40,16 +40,16 @@ export default function DemoSection() {
               </div>
               <div className="bg-surface-tertiary rounded-2xl p-4 mb-4">
                 <p className="text-sm text-text-secondary mb-2">示例问题：</p>
-                <p className="text-sm font-medium text-text-primary">"客户嫌我们的代运营服务太贵了，怎么回复？"</p>
+                <p className="text-sm font-medium text-text-primary">“新员工上手慢、企业知识分散，怎么建立一套可复用的标准知识体系？”</p>
               </div>
               <div className="bg-surface-tertiary rounded-2xl p-5">
-                <p className="text-sm font-medium mb-3">AI 基于企业销售话术资料回答：</p>
+                <p className="text-sm font-medium mb-3">AI 基于企业知识库资料回答：</p>
                 <p className="text-sm text-text-secondary leading-relaxed mb-3">
-                  "我理解您的顾虑。让我帮您算一笔账：您一个火锅店客户平均消费100元，我们合作过的火锅店平均每月新增200+桌客人，也就是2万+的增量营收。我们的服务费只占不到5%，ROI 超过 1:20。而且我们提供的是全链路服务——从内容策划、拍摄到数据分析，您只需要配合提供产品信息即可。"
+                  可以先把企业内部高频使用的信息分成几类：产品资料、服务流程、常见问题、销售话术、培训 SOP、管理制度。然后统一沉淀进知识库，按主题分类，再通过 AI 问答调用。这样新员工遇到问题时可以直接提问，快速获取标准答案；管理层也能把原本分散在文档、聊天记录和老员工经验里的知识，变成可以重复复用的企业资产。
                 </p>
                 <div className="flex items-center gap-3 pt-3 border-t border-border-light">
                   <span className="flex items-center gap-1 text-[11px] text-text-muted">
-                    <FileText className="w-3 h-3" /> 来源：本地生活商家销售话术.docx
+                    <FileText className="w-3 h-3" /> 来源：产品资料、培训 SOP、管理制度
                   </span>
                   <span className="text-[11px] text-text-muted">可信度：高</span>
                 </div>

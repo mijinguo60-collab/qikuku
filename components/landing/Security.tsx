@@ -11,7 +11,7 @@ const items = [
 
 export default function Security() {
   return (
-    <section className="max-w-7xl mx-auto px-6 py-24 md:py-32">
+    <section id="security" className="max-w-7xl mx-auto px-6 py-24 md:py-32 scroll-mt-20">
       <div className="text-center mb-16">
         <h2 className="text-3xl md:text-4xl font-bold text-text-primary mb-4">企业数据安全，不靠口号</h2>
         <p className="text-text-secondary text-lg max-w-2xl mx-auto">
