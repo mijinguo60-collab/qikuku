@@ -21,13 +21,13 @@ const categoryColors: Record<string, string> = {
   innovation: 'bg-accent-cyan/10 text-accent-cyan',
 };
 
-export default function SkillsPage() {
+export default async function SkillsPage() {
   const cookie = cookies().get('qikuku_user');
   if (!cookie) return null;
   const user = JSON.parse(cookie.value);
   const db = getDb();
 
-  const skills = db.prepare(
+  const skills = await db.prepare(
     'SELECT * FROM "Skill" WHERE "enabled" = 1 AND ("companyId" = ? OR "isBuiltIn" = 1) ORDER BY "createdAt" ASC'
   ).all(user.companyId) as SkillRow[];
 

@@ -8,13 +8,13 @@ interface SpaceRow {
   isAiEnabled: number; visibility: string; createdAt: string; updatedAt: string; fileCount: number;
 }
 
-export default function KnowledgeSpacesPage() {
+export default async function KnowledgeSpacesPage() {
   const cookie = cookies().get('qikuku_user');
   if (!cookie) return null;
   const user = JSON.parse(cookie.value);
   const db = getDb();
 
-  const spaces = db.prepare(
+  const spaces = await db.prepare(
     'SELECT ks.*, (SELECT COUNT(*) FROM "Document" d WHERE d.knowledgeSpaceId = ks.id) as fileCount FROM "KnowledgeSpace" ks WHERE ks."companyId" = ? ORDER BY ks."createdAt" DESC'
   ).all(user.companyId) as SpaceRow[];
 

@@ -22,13 +22,13 @@ const typeIcons: Record<string, string> = {
   pdf: '📄', docx: '📝', xlsx: '📊', pptx: '📑', md: '📋', txt: '📃', image: '🖼️',
 };
 
-export default function FilesPage() {
+export default async function FilesPage() {
   const cookie = cookies().get('qikuku_user');
   if (!cookie) return null;
   const user = JSON.parse(cookie.value);
   const db = getDb();
 
-  const files = db.prepare(
+  const files = await db.prepare(
     `SELECT d.*, ks.name as spaceName FROM "Document" d
      JOIN "KnowledgeSpace" ks ON d."knowledgeSpaceId" = ks.id
      WHERE d."companyId" = ? ORDER BY d."createdAt" DESC`
