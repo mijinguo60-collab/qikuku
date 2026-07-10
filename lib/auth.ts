@@ -58,8 +58,35 @@ export async function createUser(
 }
 
 export async function authenticateUser(email: string, password: string): Promise<User | null> {
+  // ── Production: database-first authentication ──
+  try {
+    const db = getDb();
+    const row = db.prepare(`
+      SELECT u.id, u.name, u.email, u.passwordHash, u.role, u.companyId, c.name as companyName
+      FROM User u JOIN Company c ON u.companyId = c.id
+      WHERE u.email = ?
+    `).get(email) as any;
+
+    if (row) {
+      const valid = await verifyPassword(password, row.passwordHash);
+      if (valid) {
+        return {
+          id: row.id, name: row.name, email: row.email,
+          role: row.role, companyId: row.companyId,
+          companyName: row.companyName,
+        };
+      }
+    }
+  } catch (e: any) {
+    console.error('[AUTH] Database authentication failed:', e.message);
+  }
+
+  // ── Emergency fallback: ENABLE_DEMO_FALLBACK=true ──
   // Demo account: unconditional bypass, no database dependency
-  if (email === 'admin@zhucheng.com' && password === '123456') {
+  // Only active when ENABLE_DEMO_FALLBACK is explicitly set to 'true'
+  // On production, this should be 'false' or unset
+  if (process.env.ENABLE_DEMO_FALLBACK === 'true' && email === 'admin@zhucheng.com' && password === '123456') {
+    console.warn('[AUTH] Using demo fallback login — set ENABLE_DEMO_FALLBACK=false in production');
     return {
       id: 'demo-user-admin',
       name: '张老板',
@@ -70,31 +97,7 @@ export async function authenticateUser(email: string, password: string): Promise
     };
   }
 
-  try {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT u.id, u.name, u.email, u.passwordHash, u.role, u.companyId, c.name as companyName
-    FROM User u JOIN Company c ON u.companyId = c.id
-    WHERE u.email = ?
-  `).get(email) as any;
-
-  if (!row) return null;
-
-  const valid = await verifyPassword(password, row.passwordHash);
-  if (!valid) return null;
-
-  return {
-    id: row.id,
-    name: row.name,
-    email: row.email,
-    role: row.role,
-    companyId: row.companyId,
-    companyName: row.companyName,
-  };
-  } catch (e: any) {
-    console.error('[AUTH] Database query failed:', e.message);
-    return null;
-  }
+  return null;
 }
 
 export function getUserById(id: string): User | null {
