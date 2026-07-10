@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Lock, Settings, LogOut, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 
@@ -40,6 +40,13 @@ const menuGroups = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/auth/login');
+    router.refresh();
+  }
 
   return (
     <aside className={`${collapsed ? 'w-16' : 'w-60'} h-screen sticky top-0 bg-surface-tertiary border-r border-border-light flex flex-col transition-all duration-200 flex-shrink-0 overflow-hidden`}>
@@ -84,10 +91,10 @@ export default function Sidebar() {
           <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           {!collapsed && <span className="whitespace-nowrap">收起菜单</span>}
         </button>
-        <Link href="/auth/login" className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-danger hover:bg-danger/5 transition-all">
+        <button onClick={handleLogout} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-danger hover:bg-danger/5 transition-all w-full text-left">
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span className="whitespace-nowrap">退出登录</span>}
-        </Link>
+        </button>
       </div>
     </aside>
   );
