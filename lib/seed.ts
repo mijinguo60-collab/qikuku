@@ -12,14 +12,14 @@ const employeeId = uuidv4();
 const now = new Date().toISOString();
 
 // Create company
-db.prepare(`INSERT INTO Company (id, name, logo, industry, description, plan, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+db.prepare(`INSERT INTO "Company" (id, name, logo, industry, description, plan, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
   .run(companyId, '诸城吃喝玩乐', null, '本地生活 / 探店代运营', '诸城本地生活与探店代运营服务商', 'free', now);
 
 // Create users (password: "123456")
 const hash = '$2a$12$LJ3m4ys3Lk0TSwMCfUzrUeCk0Z7GZ8wU0YzvZyvFqX0e0V0YK0KoW'; // bcrypt hash for "123456"
-db.prepare(`INSERT INTO User (id, name, email, passwordHash, role, companyId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+db.prepare(`INSERT INTO "User" (id, name, email, passwordHash, role, companyId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
   .run(adminId, '张老板', 'admin@zhucheng.com', hash, 'super_admin', companyId, now);
-db.prepare(`INSERT INTO User (id, name, email, passwordHash, role, companyId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+db.prepare(`INSERT INTO "User" (id, name, email, passwordHash, role, companyId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`)
   .run(employeeId, '李员工', 'employee@zhucheng.com', hash, 'member', companyId, now);
 
 // Create knowledge spaces
@@ -39,14 +39,14 @@ const spaces = [
 ];
 
 const insertSpace = db.prepare(
-  'INSERT INTO KnowledgeSpace (id, companyId, name, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)'
+  'INSERT INTO "KnowledgeSpace" (id, companyId, name, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)'
 );
 for (const s of spaces) {
   insertSpace.run(uuidv4(), companyId, s.name, s.description, now, now);
 }
 
 // Create demo documents
-const docSpaces = db.prepare('SELECT id, name FROM KnowledgeSpace WHERE companyId = ?').all(companyId) as any[];
+const docSpaces = db.prepare('SELECT id, name FROM "KnowledgeSpace" WHERE companyId = ?').all(companyId) as any[];
 const spaceMap: Record<string, string> = {};
 docSpaces.forEach((s: any) => { spaceMap[s.name] = s.id; });
 
@@ -60,7 +60,7 @@ const documents = [
 ];
 
 const insertDoc = db.prepare(
-  'INSERT INTO Document (id, companyId, knowledgeSpaceId, filename, fileType, extractedText, status, sensitivityLevel, uploadedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO "Document" (id, companyId, knowledgeSpaceId, filename, fileType, extractedText, status, sensitivityLevel, uploadedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 for (const d of documents) {
   const spaceId = spaceMap[d.space];
@@ -203,7 +203,7 @@ const skills = [
 ];
 
 const insertSkill = db.prepare(
-  'INSERT INTO Skill (id, companyId, name, category, description, sourceInspiration, framework, diagnosticQuestions, requiredKnowledgeTypes, systemPrompt, outputSchema, suitableQuestions, enabled, isBuiltIn, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO "Skill" (id, companyId, name, category, description, sourceInspiration, framework, diagnosticQuestions, requiredKnowledgeTypes, systemPrompt, outputSchema, suitableQuestions, enabled, isBuiltIn, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 for (const s of skills) {
   insertSkill.run(uuidv4(), companyId, s.name, s.category, s.description, s.sourceInspiration, s.framework, s.diagnosticQuestions, s.requiredKnowledgeTypes, s.systemPrompt, s.outputSchema, s.suitableQuestions, 1, 1, now, now);

@@ -38,10 +38,10 @@ export async function createUser(
   const userId = uuidv4();
 
   const insertCompany = db.prepare(
-    'INSERT INTO Company (id, name, industry, plan) VALUES (?, ?, ?, ?)'
+    'INSERT INTO "Company" (id, name, industry, plan) VALUES (?, ?, ?, ?)'
   );
   const insertUser = db.prepare(
-    'INSERT INTO User (id, name, email, passwordHash, role, companyId) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO "User" (id, name, email, passwordHash, role, companyId) VALUES (?, ?, ?, ?, ?, ?)'
   );
 
   const tx = db.transaction(() => {

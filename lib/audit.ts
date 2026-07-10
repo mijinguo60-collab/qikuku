@@ -15,7 +15,7 @@ export async function logAction(params: {
 }): Promise<void> {
   const db = getDb();
   const stmt = db.prepare(
-    'INSERT INTO AuditLog (id, companyId, userId, action, targetType, targetId, result, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO "AuditLog" (id, companyId, userId, action, targetType, targetId, result, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
   stmt.run(
     uuidv4(),

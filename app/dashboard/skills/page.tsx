@@ -28,7 +28,7 @@ export default function SkillsPage() {
   const db = getDb();
 
   const skills = db.prepare(
-    'SELECT * FROM Skill WHERE enabled = 1 AND (companyId = ? OR isBuiltIn = 1) ORDER BY createdAt ASC'
+    'SELECT * FROM "Skill" WHERE enabled = 1 AND (companyId = ? OR isBuiltIn = 1) ORDER BY createdAt ASC'
   ).all(user.companyId) as SkillRow[];
 
   return (

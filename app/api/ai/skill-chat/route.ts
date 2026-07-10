@@ -19,10 +19,10 @@ export async function POST(request: NextRequest) {
     const db = getDb();
     let skill: any = {};
     if (skillId) {
-      skill = await db.prepare(`SELECT * FROM Skill WHERE id = ? AND enabled = true`).get(skillId);
+      skill = await db.prepare(`SELECT * FROM "Skill" WHERE id = ? AND enabled = true`).get(skillId);
     }
     if (!skill?.id) {
-      skill = await db.prepare(`SELECT * FROM Skill WHERE enabled = true AND ("companyId" = ? OR "isBuiltIn" = true) ORDER BY "createdAt" LIMIT 1`).get(user.companyId);
+      skill = await db.prepare(`SELECT * FROM "Skill" WHERE enabled = true AND ("companyId" = ? OR "isBuiltIn" = true) ORDER BY "createdAt" LIMIT 1`).get(user.companyId);
     }
     const skillName = skill?.name || '目标与贡献管理';
     const skillPrompt = skill?.systemPrompt || '';
