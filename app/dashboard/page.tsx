@@ -3,12 +3,12 @@ import { getDashboardSummary } from '@/lib/dashboard-data';
 import { Brain, FileText, FolderOpen, MessageSquare, Image, TrendingUp, Lightbulb, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const store = cookies();
   const userCookie = store.get('qikuku_user');
   if (!userCookie) return null;
   const user = JSON.parse(userCookie.value);
-  const summary = getDashboardSummary(user.companyId);
+  const summary = await getDashboardSummary(user.companyId);
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in">

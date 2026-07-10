@@ -28,7 +28,7 @@ export default async function SkillsPage() {
   const db = getDb();
 
   const skills = await db.prepare(
-    'SELECT * FROM "Skill" WHERE "enabled" = 1 AND ("companyId" = ? OR "isBuiltIn" = 1) ORDER BY "createdAt" ASC'
+    'SELECT * FROM "Skill" WHERE "enabled" = true AND ("companyId" = ? OR "isBuiltIn" = true) ORDER BY "createdAt" ASC'
   ).all(user.companyId) as SkillRow[];
 
   return (
