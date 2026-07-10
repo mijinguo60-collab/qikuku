@@ -17,7 +17,7 @@ export async function logAction(params: {
   const stmt = db.prepare(
     'INSERT INTO "AuditLog" (id, "companyId", "userId", action, "targetType", "targetId", result, "createdAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
-  stmt.run(
+  await stmt.run(
     uuidv4(),
     params.companyId,
     params.userId || null,
@@ -29,9 +29,9 @@ export async function logAction(params: {
   );
 }
 
-export function getAuditLogs(companyId: string, limit = 50) {
+export async function getAuditLogs(companyId: string, limit = 50) {
   const db = getDb();
-  return db.prepare(
+  return await db.prepare(
     'SELECT a.*, u.name as userName FROM "AuditLog" a LEFT JOIN "User" u ON a."userId" = u.id WHERE a."companyId" = ? ORDER BY a."createdAt" DESC LIMIT ?'
   ).all(companyId, limit);
 }

@@ -40,13 +40,13 @@ function getRoleLabel(roleId: string) { return ROLES.find(r => r.id === roleId)?
 
 function getRoleDescription(roleId: string) { return ROLES.find(r => r.id === roleId)?.description || ''; }
 
-export default function PermissionsPage() {
+export default async function PermissionsPage() {
   const cookie = cookies().get('qikuku_user');
   if (!cookie) return null;
   const currentUser = JSON.parse(cookie.value);
   const db = getDb();
 
-  const users = db.prepare(
+  const users = await db.prepare(
     'SELECT id, name, email, role, "createdAt", "companyId" FROM "User" WHERE "companyId" = ? ORDER BY role, "createdAt"'
   ).all(currentUser.companyId) as UserRow[];
 

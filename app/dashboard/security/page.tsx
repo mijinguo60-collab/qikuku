@@ -28,12 +28,12 @@ function actionLabel(action: string): string {
   return map[action] || action;
 }
 
-export default function SecurityPage() {
+export default async function SecurityPage() {
   const cookie = cookies().get('qikuku_user');
   if (!cookie) return null;
   const user = JSON.parse(cookie.value);
 
-  const logs = getAuditLogs(user.companyId, 30) as any[];
+  const logs = await getAuditLogs(user.companyId, 30) as any[];
 
   return (
     <div className="p-8 max-w-6xl mx-auto animate-fade-in">
