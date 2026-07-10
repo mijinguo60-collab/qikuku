@@ -61,11 +61,12 @@ export async function authenticateUser(email: string, password: string): Promise
   // ── Production: database-first authentication ──
   try {
     const db = getDb();
-    const row = db.prepare(`
+    const stmt = db.prepare(`
       SELECT u.id, u.name, u.email, u.passwordHash, u.role, u.companyId, c.name as companyName
       FROM User u JOIN Company c ON u.companyId = c.id
       WHERE u.email = ?
-    `).get(email) as any;
+    `);
+    const row = await stmt.get(email);
 
     if (row) {
       const valid = await verifyPassword(password, row.passwordHash);
