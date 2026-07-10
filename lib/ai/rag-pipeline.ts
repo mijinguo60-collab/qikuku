@@ -26,7 +26,7 @@ export async function indexDocument(documentId: string, companyId: string, text:
   const db = getDb();
   const chunks = chunkText(text);
   const embeddings = await createEmbedding({ input: chunks });
-  const insertStmt = db.prepare('INSERT INTO "KnowledgeChunk" (id, documentId, companyId, content, embedding, createdAt) VALUES (?, ?, ?, ?, ?, ?)');
+  const insertStmt = db.prepare('INSERT INTO "KnowledgeChunk" (id, "documentId", "companyId", content, embedding, "createdAt") VALUES (?, ?, ?, ?, ?, ?)');
   const now = new Date().toISOString();
   const tx = db.transaction(() => {
     for (let i = 0; i < chunks.length; i++) {
@@ -50,8 +50,8 @@ export async function searchKnowledge(
 ): Promise<{ content: string; documentId: string; score: number; source: string }[]> {
   const db = getDb();
   const chunks = db.prepare(
-    `SELECT kc.id, kc.content, kc.embedding, kc.documentId, d.filename
-     FROM "KnowledgeChunk" kc JOIN "Document" d ON kc.documentId = d.id WHERE kc.companyId = ?`
+    `SELECT kc.id, kc.content, kc.embedding, kc."documentId", d.filename
+     FROM "KnowledgeChunk" kc JOIN "Document" d ON kc."documentId" = d.id WHERE kc."companyId" = ?`
   ).all(companyId) as any[];
 
   if (chunks.length === 0) return [];
@@ -89,6 +89,6 @@ export async function searchKnowledge(
 
 export async function reindexDocument(documentId: string, companyId: string, text: string): Promise<number> {
   const db = getDb();
-  db.prepare('DELETE FROM "KnowledgeChunk" WHERE documentId = ?').run(documentId);
+  db.prepare('DELETE FROM "KnowledgeChunk" WHERE "documentId" = ?').run(documentId);
   return indexDocument(documentId, companyId, text);
 }

@@ -48,16 +48,16 @@ export function saveApiCredential(
   const now = new Date().toISOString();
 
   const existing = db.prepare(
-    'SELECT id FROM ApiCredential WHERE companyId = ? AND provider = ?'
+    'SELECT id FROM "ApiCredential" WHERE "companyId" = ? AND provider = ?'
   ).get(companyId, provider) as any;
 
   if (existing) {
     db.prepare(
-      'UPDATE ApiCredential SET encryptedKey = ?, baseUrl = ?, model = ?, updatedAt = ? WHERE id = ?'
+      'UPDATE "ApiCredential" SET "encryptedKey" = ?, "baseUrl" = ?, model = ?, "updatedAt" = ? WHERE id = ?'
     ).run(encrypted, baseUrl, model, now, existing.id);
   } else {
     db.prepare(
-      'INSERT INTO ApiCredential (id, companyId, provider, encryptedKey, baseUrl, model, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(uuidv4(), companyId, provider, encrypted, baseUrl, model, now, now);
   }
 }
@@ -70,7 +70,7 @@ export function getApiCredential(companyId: string, provider: string): {
 } | null {
   const db = getDb();
   const row: any = db.prepare(
-    'SELECT * FROM ApiCredential WHERE companyId = ? AND provider = ?'
+    'SELECT * FROM "ApiCredential" WHERE "companyId" = ? AND provider = ?'
   ).get(companyId, provider);
   if (!row || !row.encryptedKey) return null;
   return {

@@ -39,14 +39,14 @@ const spaces = [
 ];
 
 const insertSpace = db.prepare(
-  'INSERT INTO "KnowledgeSpace" (id, companyId, name, description, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)'
+  'INSERT INTO "KnowledgeSpace" (id, "companyId", name, description, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?)'
 );
 for (const s of spaces) {
   insertSpace.run(uuidv4(), companyId, s.name, s.description, now, now);
 }
 
 // Create demo documents
-const docSpaces = db.prepare('SELECT id, name FROM "KnowledgeSpace" WHERE companyId = ?').all(companyId) as any[];
+const docSpaces = db.prepare('SELECT id, name FROM "KnowledgeSpace" WHERE "companyId" = ?').all(companyId) as any[];
 const spaceMap: Record<string, string> = {};
 docSpaces.forEach((s: any) => { spaceMap[s.name] = s.id; });
 
@@ -60,7 +60,7 @@ const documents = [
 ];
 
 const insertDoc = db.prepare(
-  'INSERT INTO "Document" (id, companyId, knowledgeSpaceId, filename, fileType, extractedText, status, sensitivityLevel, uploadedBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  'INSERT INTO "Document" (id, "companyId", "knowledgeSpaceId", filename, fileType, "extractedText", status, "sensitivityLevel", "uploadedBy", "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
 );
 for (const d of documents) {
   const spaceId = spaceMap[d.space];
@@ -210,11 +210,11 @@ for (const s of skills) {
 }
 
 // Create demo API credentials (placeholder)
-db.prepare('INSERT INTO ApiCredential (id, companyId, provider, encryptedKey, baseUrl, model, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+db.prepare('INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
   .run(uuidv4(), companyId, 'deepseek', null, 'https://api.deepseek.com', 'deepseek-chat', now, now);
-db.prepare('INSERT INTO ApiCredential (id, companyId, provider, encryptedKey, baseUrl, model, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+db.prepare('INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
   .run(uuidv4(), companyId, 'image', null, null, null, now, now);
-db.prepare('INSERT INTO ApiCredential (id, companyId, provider, encryptedKey, baseUrl, model, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+db.prepare('INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
   .run(uuidv4(), companyId, 'embedding', null, null, null, now, now);
 
 console.log('Seed data inserted successfully!');

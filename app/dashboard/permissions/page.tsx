@@ -47,7 +47,7 @@ export default function PermissionsPage() {
   const db = getDb();
 
   const users = db.prepare(
-    'SELECT id, name, email, role, createdAt, companyId FROM "User" WHERE "companyId" = ? ORDER BY role, createdAt'
+    'SELECT id, name, email, role, "createdAt", "companyId" FROM "User" WHERE "companyId" = ? ORDER BY role, "createdAt"'
   ).all(currentUser.companyId) as UserRow[];
 
   const isSuperAdmin = currentUser.role === 'super_admin';

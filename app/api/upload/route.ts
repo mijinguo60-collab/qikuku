@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Create Document record
     const db = getDb();
-    const stmt = db.prepare(`INSERT INTO "Document" (id, companyId, knowledgeSpaceId, filename, fileType, fileUrl, fileSize, status, sensitivityLevel, tags, uploadedBy, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const stmt = db.prepare(`INSERT INTO "Document" (id, "companyId", "knowledgeSpaceId", filename, fileType, "fileUrl", "fileSize", status, "sensitivityLevel", tags, "uploadedBy", "createdAt", "updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     await stmt.run(docId, user.companyId, knowledgeSpaceId, stored.originalName, ext, stored.url, stored.size, 'processing', sensitivityLevel, tags, user.id, new Date().toISOString(), new Date().toISOString());
 
     // Step 3: Parse text
@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Step 4: Save extracted text
-      const upd = db.prepare(`UPDATE "Document" SET extractedText = ?, status = ? WHERE id = ?`);
+      const upd = db.prepare(`UPDATE "Document" SET "extractedText" = ?, status = ? WHERE id = ?`);
       await upd.run(extractedText, parseStatus, docId);
 
       // Step 5: Chunk and embed (only if we have text)
       if (extractedText && extractedText.trim().length >= 50) {
         const chunks = chunkText(extractedText);
         if (chunks.length > 0) {
-          const insertChunk = db.prepare(`INSERT INTO "KnowledgeChunk" (id, documentId, companyId, content, embedding, metadata, createdAt) VALUES (?,?,?,?,?,?,?)`);
+          const insertChunk = db.prepare(`INSERT INTO "KnowledgeChunk" (id, "documentId", "companyId", content, embedding, metadata, "createdAt") VALUES (?,?,?,?,?,?,?)`);
           const now = new Date().toISOString();
 
           // Try embedding
