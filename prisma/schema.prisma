@@ -3,62 +3,58 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 model User {
-  id           String   @id @default(uuid())
+  id           String         @id @default(uuid())
   name         String
-  email        String   @unique
+  email        String         @unique
   passwordHash String
-  role         String   @default("member")
+  role         String         @default("member")
   companyId    String
-  createdAt    DateTime @default(now())
-  company      Company  @relation(fields: [companyId], references: [id])
-
-  chatSessions     ChatSession[]
+  createdAt    DateTime       @default(now())
+  company      Company        @relation(fields: [companyId], references: [id])
+  chatSessions ChatSession[]
   imageGenerations ImageGeneration[]
-  auditLogs        AuditLog[]
+  auditLogs    AuditLog[]
 }
 
 model Company {
-  id          String   @id @default(uuid())
-  name        String
-  logo        String?
-  industry    String?
-  description String?
-  plan        String   @default("free")
-  createdAt   DateTime @default(now())
-
-  users            User[]
-  knowledgeSpaces  KnowledgeSpace[]
-  documents        Document[]
-  knowledgeChunks  KnowledgeChunk[]
-  chatSessions     ChatSession[]
-  skills           Skill[]
+  id             String             @id @default(uuid())
+  name           String
+  logo           String?
+  industry       String?
+  description    String?
+  plan           String             @default("free")
+  createdAt      DateTime           @default(now())
+  users          User[]
+  knowledgeSpaces KnowledgeSpace[]
+  documents      Document[]
+  knowledgeChunks KnowledgeChunk[]
+  chatSessions   ChatSession[]
+  skills         Skill[]
   imageGenerations ImageGeneration[]
-  assets           Asset[]
-  auditLogs        AuditLog[]
-  apiCredentials   ApiCredential[]
+  assets         Asset[]
+  auditLogs      AuditLog[]
+  apiCredentials ApiCredential[]
 }
 
 model KnowledgeSpace {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   companyId   String
   name        String
   description String?
-  isAiEnabled Boolean  @default(true)
-  visibility  String   @default("all")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  company   Company    @relation(fields: [companyId], references: [id])
-  documents Document[]
+  isAiEnabled Boolean    @default(true)
+  visibility  String     @default("all")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     Company    @relation(fields: [companyId], references: [id])
+  documents   Document[]
 }
 
 model Document {
-  id               String    @id @default(uuid())
+  id               String           @id @default(uuid())
   companyId        String
   knowledgeSpaceId String
   filename         String
@@ -66,17 +62,16 @@ model Document {
   fileUrl          String?
   fileSize         Int?
   extractedText    String?
-  status           String    @default("pending")
-  sensitivityLevel String    @default("normal")
+  status           String           @default("pending")
+  sensitivityLevel String           @default("normal")
   tags             String?
   uploadedBy       String?
   expiresAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  company        Company        @relation(fields: [companyId], references: [id])
-  knowledgeSpace KnowledgeSpace @relation(fields: [knowledgeSpaceId], references: [id])
-  chunks         KnowledgeChunk[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  company          Company          @relation(fields: [companyId], references: [id])
+  knowledgeSpace   KnowledgeSpace   @relation(fields: [knowledgeSpaceId], references: [id])
+  chunks           KnowledgeChunk[]
 }
 
 model KnowledgeChunk {
@@ -87,40 +82,37 @@ model KnowledgeChunk {
   embedding  String?
   metadata   String?
   createdAt  DateTime @default(now())
-
-  document Document @relation(fields: [documentId], references: [id])
-  company  Company  @relation(fields: [companyId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id])
+  company    Company  @relation(fields: [companyId], references: [id])
 }
 
 model ChatSession {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   companyId String
   userId    String
-  mode      String   @default("knowledge")
+  mode      String        @default("knowledge")
   skillId   String?
   title     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company  Company       @relation(fields: [companyId], references: [id])
-  user     User          @relation(fields: [userId], references: [id])
-  messages ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  company   Company       @relation(fields: [companyId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
+  messages  ChatMessage[]
 }
 
 model ChatMessage {
-  id        String   @id @default(uuid())
+  id        String      @id @default(uuid())
   sessionId String
   role      String
   content   String
   sources   String?
   metadata  String?
-  createdAt DateTime @default(now())
-
-  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model Skill {
-  id                     String   @id @default(uuid())
+  id                     String    @id @default(uuid())
   companyId              String?
   name                   String
   category               String
@@ -132,12 +124,11 @@ model Skill {
   systemPrompt           String
   outputSchema           String?
   suitableQuestions      String?
-  enabled                Boolean  @default(true)
-  isBuiltIn              Boolean  @default(false)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-
-  company Company? @relation(fields: [companyId], references: [id])
+  enabled                Boolean   @default(true)
+  isBuiltIn              Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  company                Company?  @relation(fields: [companyId], references: [id])
 }
 
 model ImageGeneration {
@@ -153,23 +144,21 @@ model ImageGeneration {
   size           String?
   status         String   @default("pending")
   createdAt      DateTime @default(now())
-
-  company Company @relation(fields: [companyId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  company        Company  @relation(fields: [companyId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
 }
 
 model Asset {
-  id        String   @id @default(uuid())
-  companyId String
-  userId    String
-  type      String    @default("image")
-  url       String
-  title     String?
-  tags      String?
+  id         String   @id @default(uuid())
+  companyId  String
+  userId     String
+  type       String   @default("image")
+  url        String
+  title      String?
+  tags       String?
   isFavorite Boolean  @default(false)
-  createdAt DateTime  @default(now())
-
-  company Company @relation(fields: [companyId], references: [id])
+  createdAt  DateTime @default(now())
+  company    Company  @relation(fields: [companyId], references: [id])
 }
 
 model AuditLog {
@@ -182,9 +171,8 @@ model AuditLog {
   ip         String?
   result     String?
   createdAt  DateTime @default(now())
-
-  company Company @relation(fields: [companyId], references: [id])
-  user    User?   @relation(fields: [userId], references: [id])
+  company    Company  @relation(fields: [companyId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
 }
 
 model ApiCredential {
@@ -197,8 +185,6 @@ model ApiCredential {
   extraConfig  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id])
-
+  company      Company  @relation(fields: [companyId], references: [id])
   @@unique([companyId, provider])
 }
