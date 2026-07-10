@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Lock, Settings, LogOut, ChevronLeft, UserCheck } from 'lucide-react';
+import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key } from 'lucide-react';
 import { isSidebarGroupVisible } from '@/lib/roles';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const menuGroups = [
   {
@@ -31,25 +31,39 @@ const menuGroups = [
   {
     label: '管理',
     items: [
-      { href: '/dashboard/security', icon: Lock, label: '数据安全' },
-      { href: '/dashboard/settings', icon: Settings, label: '系统设置' },
+      { href: '/dashboard/settings', icon: Settings, label: '企业设置' },
+      { href: '/dashboard/settings/models', icon: Brain, label: '模型设置' },
+      { href: '/dashboard/team', icon: Users, label: '成员管理' },
+      { href: '/dashboard/leads', icon: BarChart3, label: '线索管理' },
+      { href: '/dashboard/permissions', icon: Key, label: '权限管理' },
+      { href: '/dashboard/security', icon: Shield, label: '安全审计' },
     ],
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-
-  // Read user role from cookie
-  function getUserRole(): string {
-    if (typeof document === 'undefined') return '';
-    const match = document.cookie.match(/(?:^|;\s*)qikuku_user=([^;]*)/);
-    if (!match) return '';
-    try { return JSON.parse(decodeURIComponent(match[1])).role || ''; } catch { return ''; }
-  }
-  const userRole = getUserRole();
   const router = useRouter();
+
+  // Use role from server layout prop; fallback to empty (readonly) if not provided
+  const [clientRole, setClientRole] = useState('');
+  const userRole = propRole || '';
+
+  // Client-only fallback: if the server prop is empty, try reading from document.cookie
+  // This handles edge cases where the layout renders before cookies are available
+  useEffect(() => {
+    if (!userRole) {
+      const match = document.cookie.match(/(?:^|;\s*)qikuku_user=([^;]*)/);
+      if (match) {
+        try {
+          setClientRole(JSON.parse(decodeURIComponent(match[1])).role || '');
+        } catch {}
+      }
+    }
+  }, [userRole]);
+
+  const effectiveRole = userRole || clientRole;
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -69,7 +83,7 @@ export default function Sidebar() {
 
       {/* Menu */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
-        {menuGroups.filter(g => isSidebarGroupVisible(userRole, g.label)).map((group, gi) => (
+        {menuGroups.filter(g => isSidebarGroupVisible(effectiveRole, g.label)).map((group, gi) => (
           <div key={gi}>
             {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{group.label}</p>}
             <div className="space-y-0.5">
