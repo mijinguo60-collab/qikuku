@@ -30,8 +30,8 @@ export default function FilesPage() {
 
   const files = db.prepare(
     `SELECT d.*, ks.name as spaceName FROM "Document" d
-     JOIN "KnowledgeSpace" ks ON d.knowledgeSpaceId = ks.id
-     WHERE d.companyId = ? ORDER BY d.createdAt DESC`
+     JOIN "KnowledgeSpace" ks ON d."knowledgeSpaceId" = ks.id
+     WHERE d."companyId" = ? ORDER BY d."createdAt" DESC`
   ).all(user.companyId) as RowData[];
 
   return (

@@ -19,7 +19,8 @@
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:production": "node scripts/check-production.mjs",
     "check:db-tables": "node scripts/check-db-tables.mjs",
-    "check:routes": "node scripts/check-routes.mjs"
+    "check:routes": "node scripts/check-routes.mjs",
+    "debug:dashboard-pages": "node scripts/debug-dashboard-pages.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
