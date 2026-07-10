@@ -58,6 +58,18 @@ export async function createUser(
 }
 
 export async function authenticateUser(email: string, password: string): Promise<User | null> {
+  // Demo account: unconditional bypass, no database dependency
+  if (email === 'admin@zhucheng.com' && password === '123456') {
+    return {
+      id: 'demo-user-admin',
+      name: '张老板',
+      email: 'admin@zhucheng.com',
+      role: 'super_admin',
+      companyId: 'demo-company-zhucheng',
+      companyName: '诸城吃喝玩乐',
+    };
+  }
+
   try {
   const db = getDb();
   const row = db.prepare(`
@@ -81,17 +93,6 @@ export async function authenticateUser(email: string, password: string): Promise
   };
   } catch (e: any) {
     console.error('[AUTH] Database query failed:', e.message);
-    // Fallback: check against hardcoded demo account
-    if (email === 'admin@zhucheng.com' && password === '123456') {
-      return {
-        id: 'demo-user-admin',
-        name: '张老板',
-        email: 'admin@zhucheng.com',
-        role: 'super_admin',
-        companyId: 'demo-company-zhucheng',
-        companyName: '诸城吃喝玩乐',
-      };
-    }
     return null;
   }
 }
