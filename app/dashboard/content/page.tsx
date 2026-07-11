@@ -33,6 +33,7 @@ export default function ContentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'knowledge',
+          featureType: 'content_generation',
           messages: [
             { role: 'system', content: `你是企库库内容生成助手。请基于企业知识库资料，为用户生成${typeLabel}。要求：专业、可执行、贴合企业实际。不要编造不存在的信息。` },
             { role: 'user', content: `请生成${typeLabel}：${input}` },

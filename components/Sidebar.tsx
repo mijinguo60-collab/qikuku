@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key } from 'lucide-react';
+import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key, Wallet } from 'lucide-react';
 import { isSidebarGroupVisible } from '@/lib/roles';
 import { useState, useEffect } from 'react';
 
@@ -17,6 +17,7 @@ const menuGroups = [
       { href: '/dashboard/skills', icon: Lightbulb, label: 'Skill 中心' },
       { href: '/dashboard/images', icon: Image, label: 'AI 做图' },
       { href: '/dashboard/assets', icon: Library, label: '图片素材库' },
+      { href: '/dashboard/billing', icon: Wallet, label: '套餐与积分' },
     ],
   },
   {
@@ -48,6 +49,7 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
 
   // Use role from server layout prop; fallback to empty (readonly) if not provided
   const [clientRole, setClientRole] = useState('');
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const userRole = propRole || '';
 
   // Client-only fallback: if the server prop is empty, try reading from document.cookie
@@ -62,6 +64,14 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
       }
     }
   }, [userRole]);
+
+  useEffect(() => {
+    fetch('/api/billing/credits').then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json();
+      setCreditBalance(Number(data?.credits?.totalBalance || 0));
+    }).catch(() => {});
+  }, []);
 
   const effectiveRole = userRole || clientRole;
 
@@ -110,6 +120,9 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
 
       {/* Bottom */}
       <div className="border-t border-border-light p-2 space-y-1">
+        {!collapsed && creditBalance !== null && <Link href="/dashboard/billing" className={`block px-3 py-2 rounded-xl text-xs transition-colors ${creditBalance < 1000 ? 'bg-warning/10 text-warning' : 'text-text-secondary hover:bg-surface-hover'}`}>
+          <span className="block text-[10px] text-text-muted">AI 算力积分</span><span className="font-semibold">{creditBalance.toLocaleString()}</span>{creditBalance < 1000 && <span className="ml-1 text-[10px]">余额较低</span>}
+        </Link>}
         <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all w-full">
           <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           {!collapsed && <span className="whitespace-nowrap">收起菜单</span>}

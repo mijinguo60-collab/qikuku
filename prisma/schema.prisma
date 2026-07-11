@@ -19,6 +19,9 @@ model User {
   imageGenerations ImageGeneration[]
   auditLogs    AuditLog[]
   aiCallLogs   AiCallLog[]
+  creditLedgers CreditLedger[]
+  rechargeOrders RechargeOrder[]
+  usageRecords UsageRecord[]
 }
 
 model Company {
@@ -40,6 +43,12 @@ model Company {
   auditLogs      AuditLog[]
   apiCredentials ApiCredential[]
   aiCallLogs     AiCallLog[]
+  subscriptions  Subscription[]
+  creditAccount  CreditAccount?
+  creditGrants   CreditGrant[]
+  creditLedgers  CreditLedger[]
+  rechargeOrders RechargeOrder[]
+  usageRecords   UsageRecord[]
 }
 
 model KnowledgeSpace {
@@ -232,4 +241,130 @@ model Lead {
   source       String   @default("website")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Plan {
+  id                 String         @id @default(uuid())
+  code               String         @unique
+  name               String
+  monthlyPrice       Int            @default(0)
+  yearlyPrice        Int            @default(0)
+  monthlyCredits     Int            @default(0)
+  maxMembers         Int            @default(3)
+  maxKnowledgeSpaces Int            @default(3)
+  storageLimitBytes  BigInt         @default(0)
+  featuresJson       String?
+  enabled            Boolean        @default(true)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id           String   @id @default(uuid())
+  companyId    String
+  planId       String
+  billingCycle String   @default("trial")
+  status       String   @default("trialing")
+  startedAt    DateTime @default(now())
+  expiresAt    DateTime?
+  autoRenew    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  company      Company  @relation(fields: [companyId], references: [id])
+  plan         Plan     @relation(fields: [planId], references: [id])
+  @@index([companyId, status])
+  @@index([expiresAt])
+}
+
+model CreditAccount {
+  id               String   @id @default(uuid())
+  companyId        String   @unique
+  totalBalance     Int      @default(0)
+  packageBalance   Int      @default(0)
+  purchasedBalance Int      @default(0)
+  bonusBalance     Int      @default(0)
+  updatedAt        DateTime @updatedAt
+  company          Company  @relation(fields: [companyId], references: [id])
+}
+
+model CreditGrant {
+  id              String         @id @default(uuid())
+  companyId       String
+  sourceType      String
+  sourceId        String?
+  originalAmount  Int
+  remainingAmount Int
+  expiresAt       DateTime?
+  createdAt       DateTime       @default(now())
+  company         Company        @relation(fields: [companyId], references: [id])
+  ledgers         CreditLedger[]
+  @@index([companyId, expiresAt])
+  @@index([companyId, sourceType])
+}
+
+model CreditLedger {
+  id             String       @id @default(uuid())
+  companyId      String
+  userId         String?
+  grantId        String?
+  type           String
+  featureType    String?
+  amount         Int
+  balanceBefore  Int
+  balanceAfter   Int
+  requestId      String?
+  idempotencyKey String       @unique
+  description    String?
+  metadataJson   String?
+  createdAt      DateTime     @default(now())
+  company        Company      @relation(fields: [companyId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+  grant          CreditGrant? @relation(fields: [grantId], references: [id])
+  @@index([companyId, createdAt])
+  @@index([companyId, featureType])
+  @@index([requestId])
+}
+
+model RechargeOrder {
+  id                 String   @id @default(uuid())
+  orderNo            String   @unique
+  companyId          String
+  userId             String?
+  amountCents        Int
+  baseCredits        Int
+  bonusCredits       Int      @default(0)
+  firstRechargeBonus Int      @default(0)
+  provider           String   @default("manual")
+  status             String   @default("pending")
+  providerOrderNo    String?
+  paidAt             DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  company            Company  @relation(fields: [companyId], references: [id])
+  user               User?    @relation(fields: [userId], references: [id])
+  @@index([companyId, status])
+  @@index([createdAt])
+}
+
+model UsageRecord {
+  id                 String   @id @default(uuid())
+  companyId          String
+  userId             String?
+  featureType        String
+  requestId          String?
+  model              String?
+  inputTokens        Int?
+  outputTokens       Int?
+  imageCount         Int?
+  chargedCredits     Int      @default(0)
+  estimatedCostCents Int      @default(0)
+  success            Boolean  @default(false)
+  errorCode          String?
+  createdAt          DateTime @default(now())
+  company            Company  @relation(fields: [companyId], references: [id])
+  user               User?    @relation(fields: [userId], references: [id])
+  @@index([companyId, createdAt])
+  @@index([companyId, featureType])
+  @@index([requestId])
 }

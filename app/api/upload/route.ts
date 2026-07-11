@@ -6,6 +6,9 @@ import { parseFile, getFileParserStatus } from '@/lib/file-parser';
 import { chunkText } from '@/lib/ai/rag-pipeline';
 import { createEmbedding } from '@/lib/ai/embedding-provider';
 import { logAction } from '@/lib/audit';
+import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
+import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { FEATURE_CREDITS } from '@/lib/billing/pricing';
 
 const ALLOWED_TYPES = ['pdf','doc','docx','xls','xlsx','txt','md','markdown','csv','json'];
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -23,6 +26,10 @@ export async function POST(request: NextRequest) {
     const userCookie = request.cookies.get('qikuku_user');
     if (!userCookie) return NextResponse.json({ error: '未登录' }, { status: 401 });
     const user = JSON.parse(userCookie.value);
+
+    await ensureCompanySubscription(user.companyId, user.id);
+    const preflight = await checkCreditBalance(user.companyId, FEATURE_CREDITS.file_embedding);
+    if (!preflight.ok) return NextResponse.json({ error: 'AI算力积分不足，请充值或升级套餐', requiredCredits: FEATURE_CREDITS.file_embedding, balance: preflight.balance, billingUrl: '/dashboard/billing' }, { status: 402 });
 
     if (!knowledgeSpaceId) {
       return NextResponse.json({ error: '请选择知识空间后再上传文件' }, { status: 400 });
@@ -111,10 +118,15 @@ export async function POST(request: NextRequest) {
 
     await db.prepare(`UPDATE "Document" SET status = ? WHERE id = ?`).run(finalStatus, docId);
 
+    // 只有成功完成解析与向量化时才扣费；解析或 Embedding 失败保持免费。
+    const billing = embeddingStatus === 'success'
+      ? await consumeCredits({ companyId: user.companyId, userId: user.id, amount: FEATURE_CREDITS.file_embedding, featureType: 'file_embedding', requestId: `document:${docId}`, idempotencyKey: `document:${docId}`, description: '文件解析与知识库向量化' })
+      : null;
+
     return NextResponse.json({
       success: true, documentId: docId, fileName: stored.originalName,
       status: finalStatus, extractedTextLength: extractedText.length,
-      chunkCount, embeddingStatus,
+      chunkCount, embeddingStatus, chargedCredits: billing?.chargedCredits || 0, remainingCredits: billing?.balance,
     });
   } catch (e: any) {
     console.error('[UPLOAD]', e.message);

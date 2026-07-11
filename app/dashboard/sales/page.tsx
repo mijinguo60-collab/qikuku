@@ -29,6 +29,7 @@ export default function SalesPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'knowledge',
+          featureType: 'sales_assistant',
           messages: [
             { role: 'system', content: '你是企业销售AI助手。基于企业知识库中的产品资料、销售话术、报价体系和客户案例，为销售人员提供专业、可执行的回复建议。回复需包含：具体话术模板、关键要点、注意事项。' },
             { role: 'user', content: q },

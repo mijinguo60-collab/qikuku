@@ -27,6 +27,7 @@ export default function SupportPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'knowledge',
+          featureType: 'support_assistant',
           messages: [
             { role: 'system', content: '你是企业客服AI助手。基于企业知识库中的FAQ、售后政策、服务标准和客户案例，为客服人员提供专业、温暖、解决问题的回复建议。回复格式：1. 标准话术 2. 注意事项 3. 升级建议（如果需要升级处理）。' },
             { role: 'user', content: q },

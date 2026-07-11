@@ -28,6 +28,7 @@ export default function TrainingPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'knowledge',
+          featureType: 'training_plan',
           messages: [
             { role: 'system', content: `你是企业培训课程生成助手。基于企业知识库资料，为新员工生成${roleName}岗位的培训课程。请输出5个培训模块，每个模块包含标题和要点说明（每点不超过100字）。用以下格式：\n\n模块一：标题\n内容...\n\n模块二：标题\n内容...` },
             { role: 'user', content: `请生成${roleName}岗位新员工培训课程` },

@@ -4,6 +4,10 @@ import { getLlmConfig, llmChatCompletion, llmChatCompletionStream } from '@/lib/
 import { searchKnowledge } from '@/lib/ai/rag-pipeline';
 import { logAiCall } from '@/lib/ai/ai-logger';
 import { appendChatMessage, ensureChatSession, SessionOwner } from '@/lib/chat-sessions';
+import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
+import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { FEATURE_CREDITS } from '@/lib/billing/pricing';
+import { v4 as uuid } from 'uuid';
 
 function currentOwner(request: NextRequest): SessionOwner | null {
   const cookie = request.cookies.get('qikuku_user');
@@ -45,6 +49,10 @@ export async function POST(request: NextRequest) {
     const userMsg = [...messages].reverse().find((message: any) => message.role === 'user' && typeof message.content === 'string');
     const query = userMsg?.content?.trim() || '';
     if (!query) return NextResponse.json({ error: '请输入管理问题' }, { status: 400 });
+    await ensureCompanySubscription(owner.companyId, owner.id);
+    const preflight = await checkCreditBalance(owner.companyId, FEATURE_CREDITS.skill_chat);
+    if (!preflight.ok) return NextResponse.json({ error: 'AI算力积分不足，请充值或升级套餐', requiredCredits: FEATURE_CREDITS.skill_chat, balance: preflight.balance, billingUrl: '/dashboard/billing' }, { status: 402 });
+    const requestId = uuid();
 
     const db = getDb();
     let skill: any;
@@ -85,6 +93,8 @@ export async function POST(request: NextRequest) {
             }
             await appendChatMessage(session, 'assistant', answer, { sources: sourceOutput, metadata: { modelStatus: 'live', skillId: skill.id, skillName: skill.name } });
             await logAiCall({ companyId: owner.companyId, userId: owner.id, mode: 'skill', model: getLlmConfig().model, modelStatus: 'live', questionPreview: query, latencyMs: Date.now() - start, success: true, sourcesCount: sources.length });
+            const billing = answer.trim() ? await consumeCredits({ companyId: owner.companyId, userId: owner.id, amount: FEATURE_CREDITS.skill_chat, featureType: 'skill_chat', requestId, idempotencyKey: `skill:${requestId}`, description: '管理 Skill 问答', model: getLlmConfig().model }) : null;
+            if (billing) controller.enqueue(encoder.encode(sse({ chargedCredits: billing.chargedCredits, remainingCredits: billing.balance })));
             if (sourceOutput.length) controller.enqueue(encoder.encode(sse({ sources: sourceOutput })));
             controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           } catch (error: any) {
@@ -102,7 +112,10 @@ export async function POST(request: NextRequest) {
     const result = await llmChatCompletion({ messages: allMessages, temperature: 0.3 });
     if (result.answer) await appendChatMessage(session, 'assistant', result.answer, { sources: sourceOutput, metadata: { modelStatus: result.modelStatus, skillId: skill.id, skillName: skill.name } });
     await logAiCall({ companyId: owner.companyId, userId: owner.id, mode: 'skill', model: result.model, modelStatus: result.modelStatus, questionPreview: query, promptTokens: result.usage?.promptTokens, completionTokens: result.usage?.completionTokens, totalTokens: result.usage?.totalTokens, latencyMs: result.latencyMs, success: result.modelStatus === 'live', errorMessage: result.error, sourcesCount: sources.length });
-    return NextResponse.json({ answer: result.answer, error: result.error, sources: sourceOutput, sessionId: session.id, skillName: skill.name, skillId: skill.id, modelStatus: result.modelStatus, latencyMs: Date.now() - start });
+    const billing = result.answer?.trim() && result.modelStatus === 'live'
+      ? await consumeCredits({ companyId: owner.companyId, userId: owner.id, amount: FEATURE_CREDITS.skill_chat, featureType: 'skill_chat', requestId, idempotencyKey: `skill:${requestId}`, description: '管理 Skill 问答', model: result.model, outputTokens: result.usage?.completionTokens })
+      : null;
+    return NextResponse.json({ answer: result.answer, error: result.error, sources: sourceOutput, sessionId: session.id, skillName: skill.name, skillId: skill.id, modelStatus: result.modelStatus, latencyMs: Date.now() - start, chargedCredits: billing?.chargedCredits || 0, remainingCredits: billing?.balance });
   } catch (error: any) {
     console.error('[SKILL_CHAT]', error.message);
     return NextResponse.json({ error: error.message || '管理 Skill 问答失败' }, { status: 500 });

@@ -5,6 +5,9 @@ import { persistGeneratedImage } from '@/lib/ai/persist-generated-image';
 import { getDb } from '@/lib/db';
 import { appendChatMessage, ensureChatSession, SessionOwner } from '@/lib/chat-sessions';
 import { v4 as uuid } from 'uuid';
+import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
+import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { FEATURE_CREDITS } from '@/lib/billing/pricing';
 
 const MAX_COUNT = 4;
 const MAX_REFERENCE_BYTES = 10 * 1024 * 1024;
@@ -69,6 +72,12 @@ export async function POST(request: NextRequest) {
     const ratio = RATIOS[aspectRatio] ? aspectRatio : '1:1';
     const size = RATIOS[ratio];
     const n = Math.min(Math.max(parseInt(count) || 1, 1), MAX_COUNT);
+    await ensureCompanySubscription(owner.companyId, owner.id);
+    const featureType = referenceImage ? 'image_edit' : 'image_generation';
+    const requiredCredits = FEATURE_CREDITS[featureType];
+    const preflight = await checkCreditBalance(owner.companyId, requiredCredits * n);
+    if (!preflight.ok) return NextResponse.json({ error: 'AI算力积分不足，请充值或升级套餐', requiredCredits: requiredCredits * n, balance: preflight.balance, billingUrl: '/dashboard/billing' }, { status: 402 });
+    const requestId = uuid();
     session = await ensureChatSession(owner, typeof sessionId === 'string' ? sessionId : undefined, 'image');
 
     const referenceImageUrl = referenceImage ? await persistReferenceImage(referenceImage, owner.companyId, typeof referenceImageName === 'string' ? referenceImageName : undefined) : null;
@@ -133,9 +142,15 @@ export async function POST(request: NextRequest) {
       metadata: { kind: 'image_result', prompt: prompt.trim(), imageUrls: images.map((image) => image.url), generationIds, aspectRatio: ratio, assetsSaved, warnings },
     });
 
+    // 图片需要已成功生成且成功入库，才正式扣除积分。
+    const billing = assetsSaved
+      ? await consumeCredits({ companyId: owner.companyId, userId: owner.id, amount: requiredCredits * images.length, featureType, requestId, idempotencyKey: `image:${requestId}`, description: referenceImage ? '参考图生成' : '文生图', model: imageConfig.model, imageCount: images.length })
+      : null;
+
     return NextResponse.json({
       sessionId: session.id, images, generationIds, prompt: prompt.trim(), finalPrompt: result.revisedPrompt || finalPrompt,
       aspectRatio: ratio, size, referenceImageUrl, assetsSaved, warnings, capabilities: getImageCapabilities(), latencyMs: Date.now() - start,
+      chargedCredits: billing?.chargedCredits || 0, remainingCredits: billing?.balance,
     });
   } catch (error: any) {
     const message = error.message || '图片生成失败';

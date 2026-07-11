@@ -1,6 +1,7 @@
 import { getDb } from './db';
 import { compare, hash } from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import { ensureCompanySubscription } from './billing/plans';
 
 export interface User {
   id: string;
@@ -44,13 +45,11 @@ export async function createUser(
     'INSERT INTO "User" (id, name, email, "passwordHash", role, "companyId") VALUES (?, ?, ?, ?, ?, ?)'
   );
 
-  const tx = db.transaction(() => {
-    insertCompany.run(companyId, companyName, null, 'free');
-    insertUser.run(userId, name, email, passwordHash, 'super_admin', companyId);
-  });
-
   try {
-    tx();
+    await insertCompany.run(companyId, companyName, null, 'free');
+    await insertUser.run(userId, name, email, passwordHash, 'super_admin', companyId);
+    // 幂等初始化体验订阅和首次积分；失败不会重复发放。
+    await ensureCompanySubscription(companyId, userId);
     return { id: userId, name, email, role: 'super_admin', companyId };
   } catch {
     return null;
