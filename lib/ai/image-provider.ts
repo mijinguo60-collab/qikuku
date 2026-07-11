@@ -18,6 +18,14 @@ export interface ImageGenerationResponse {
   revisedPrompt?: string;
 }
 
+export function getImageCapabilities() {
+  return {
+    textToImage: true,
+    // Enable only for channels verified to accept image input at the OpenAI-compatible edits endpoint.
+    imageToImage: process.env.IMAGE_SUPPORTS_IMAGE_INPUT === 'true',
+  };
+}
+
 export function buildImageEndpoint(baseUrl: string, kind: 'generations' | 'edits' = 'generations') {
   try {
     return buildOpenAiCompatibleEndpoint(baseUrl, `/images/${kind}`, '图片 API 地址未配置，请设置 IMAGE_BASE_URL');
@@ -97,6 +105,12 @@ async function requestImage(options: ImageGenerationOptions, kind: 'generations'
 }
 
 export async function generateImage(options: ImageGenerationOptions): Promise<ImageGenerationResponse> {
+  if (options.sourceImage) {
+    if (!getImageCapabilities().imageToImage) {
+      throw new Error('当前图片通道暂不支持参考图生成，请更换支持图生图的图片接口或关闭参考图后重试。');
+    }
+    return requestImage(options, 'edits');
+  }
   return requestImage(options, 'generations');
 }
 

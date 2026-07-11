@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
 
-export type ChatMode = 'knowledge' | 'skill';
+export type ChatMode = 'knowledge' | 'skill' | 'image';
 
 export interface SessionOwner {
   id: string;
@@ -31,7 +31,7 @@ export interface ChatMessageRecord {
 }
 
 export function isChatMode(value: unknown): value is ChatMode {
-  return value === 'knowledge' || value === 'skill';
+  return value === 'knowledge' || value === 'skill' || value === 'image';
 }
 
 export async function createChatSession(owner: SessionOwner, mode: ChatMode, skillId?: string | null): Promise<ChatSessionRecord> {
@@ -70,7 +70,7 @@ export async function appendChatMessage(
   session: ChatSessionRecord,
   role: ChatMessageRecord['role'],
   content: string,
-  options?: { sources?: unknown; metadata?: unknown }
+  options?: { sources?: unknown; metadata?: unknown; titleLength?: number }
 ) {
   const db = getDb();
   const now = new Date().toISOString();
@@ -84,7 +84,7 @@ export async function appendChatMessage(
     now
   );
 
-  const title = role === 'user' ? content.trim().replace(/\s+/g, ' ').slice(0, 20) : null;
+  const title = role === 'user' ? content.trim().replace(/\s+/g, ' ').slice(0, options?.titleLength || 20) : null;
   await db.prepare(
     `UPDATE "ChatSession"
      SET title = COALESCE(NULLIF(title, ''), ?), "updatedAt" = ?

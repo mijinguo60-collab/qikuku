@@ -11,7 +11,7 @@ export interface ConversationSummary {
 }
 
 interface ConversationHistoryProps {
-  mode: 'knowledge' | 'skill';
+  mode: 'knowledge' | 'skill' | 'image';
   activeSessionId: string | null;
   refreshKey: number;
   // eslint-disable-next-line no-unused-vars

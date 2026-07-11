@@ -144,6 +144,7 @@ model ImageGeneration {
   sourceImageUrl  String?
   model           String?
   size            String?
+  aspectRatio     String?
   purpose         String?
   style           String?
   storageProvider String?
