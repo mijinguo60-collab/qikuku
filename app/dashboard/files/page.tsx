@@ -1,6 +1,8 @@
 import { getDb } from '@/lib/db';
 import { cookies } from 'next/headers';
-import { FileText, Upload, Search, Filter, MoreHorizontal } from 'lucide-react';
+import { FileText, Search, Filter, MoreHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import FileUploadButton from '@/components/dashboard/FileUploadButton';
 
 interface RowData {
   id: string; filename: string; fileType: string; status: string;
@@ -33,6 +35,9 @@ export default async function FilesPage() {
      JOIN "KnowledgeSpace" ks ON d."knowledgeSpaceId" = ks.id
      WHERE d."companyId" = ? ORDER BY d."createdAt" DESC`
   ).all(user.companyId) as RowData[];
+  const spaces = await db.prepare(
+    `SELECT id, name FROM "KnowledgeSpace" WHERE "companyId" = ? ORDER BY "createdAt" DESC`
+  ).all(user.companyId) as { id: string; name: string }[];
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in">
@@ -41,9 +46,7 @@ export default async function FilesPage() {
           <h1 className="text-2xl font-bold text-text-primary mb-1">文件中心</h1>
           <p className="text-sm text-text-secondary">{files.length} 个文件</p>
         </div>
-        <button className="btn-primary text-sm flex items-center gap-2">
-          <Upload className="w-4 h-4" /> 上传文件
-        </button>
+        <FileUploadButton spaces={spaces} />
       </div>
       <div className="flex items-center gap-3 mb-6">
         <div className="flex-1 relative">
@@ -75,7 +78,7 @@ export default async function FilesPage() {
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
                         <span className="text-base">{typeIcons[f.fileType] || '📁'}</span>
-                        <span className="text-text-primary font-medium">{f.filename}</span>
+                        <Link href={`/dashboard/files/${f.id}`} className="text-text-primary font-medium hover:text-accent-blue transition-colors">{f.filename}</Link>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-text-secondary">{f.spaceName}</td>

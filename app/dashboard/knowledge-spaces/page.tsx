@@ -2,6 +2,7 @@ import { getDb } from '@/lib/db';
 import { cookies } from 'next/headers';
 import { FolderOpen, FileText, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
+import CreateKnowledgeSpaceButton from '@/components/dashboard/CreateKnowledgeSpaceButton';
 
 interface SpaceRow {
   id: string; companyId: string; name: string; description: string | null;
@@ -23,7 +24,7 @@ export default async function KnowledgeSpacesPage() {
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-bold text-text-primary mb-1">知识空间</h1>
           <p className="text-sm text-text-secondary">{spaces.length} 个知识空间</p></div>
-        <button className="btn-primary text-sm">创建空间</button>
+        <CreateKnowledgeSpaceButton />
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {spaces.map((space: SpaceRow) => (
@@ -32,9 +33,9 @@ export default async function KnowledgeSpacesPage() {
               <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center">
                 <FolderOpen className="w-5 h-5 text-text-secondary" />
               </div>
-              <button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-surface-hover transition-all">
+              <span className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all" aria-hidden="true">
                 <MoreHorizontal className="w-4 h-4 text-text-muted" />
-              </button>
+              </span>
             </div>
             <h3 className="text-sm font-semibold text-text-primary mb-1">{space.name}</h3>
             {space.description && <p className="text-xs text-text-muted mb-3 line-clamp-2">{space.description}</p>}

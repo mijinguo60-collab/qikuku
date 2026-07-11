@@ -24,6 +24,18 @@ export async function POST(request: NextRequest) {
     if (!userCookie) return NextResponse.json({ error: '未登录' }, { status: 401 });
     const user = JSON.parse(userCookie.value);
 
+    if (!knowledgeSpaceId) {
+      return NextResponse.json({ error: '请选择知识空间后再上传文件' }, { status: 400 });
+    }
+
+    const db = getDb();
+    const space = await db.prepare(
+      `SELECT id FROM "KnowledgeSpace" WHERE id = ? AND "companyId" = ?`
+    ).get(knowledgeSpaceId, user.companyId);
+    if (!space) {
+      return NextResponse.json({ error: '知识空间不存在或无权限访问' }, { status: 400 });
+    }
+
     const ext = f.name.split('.').pop()?.toLowerCase() || '';
     if (!ALLOWED_TYPES.includes(ext)) {
       return NextResponse.json({ error: `不支持的文件类型: .${ext}` }, { status: 400 });
@@ -41,8 +53,7 @@ export async function POST(request: NextRequest) {
     const stored = await storage.upload({ buffer, originalName: f.name, mimeType, size: f.size });
 
     // Step 2: Create Document record
-    const db = getDb();
-    const stmt = db.prepare(`INSERT INTO "Document" (id, "companyId", "knowledgeSpaceId", filename, fileType, "fileUrl", "fileSize", status, "sensitivityLevel", tags, "uploadedBy", "createdAt", "updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    const stmt = db.prepare(`INSERT INTO "Document" (id, "companyId", "knowledgeSpaceId", filename, "fileType", "fileUrl", "fileSize", status, "sensitivityLevel", tags, "uploadedBy", "createdAt", "updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     await stmt.run(docId, user.companyId, knowledgeSpaceId, stored.originalName, ext, stored.url, stored.size, 'processing', sensitivityLevel, tags, user.id, new Date().toISOString(), new Date().toISOString());
 
     // Step 3: Parse text

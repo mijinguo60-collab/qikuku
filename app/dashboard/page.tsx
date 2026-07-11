@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
-import { getDashboardSummary } from '@/lib/dashboard-data';
-import { Brain, FileText, FolderOpen, MessageSquare, Image, TrendingUp, Lightbulb, AlertTriangle } from 'lucide-react';
+import { getDashboardSummary, getTodayIndustryTopics } from '@/lib/dashboard-data';
+import { Brain, FileText, FolderOpen, MessageSquare, Image, TrendingUp, Lightbulb, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default async function DashboardPage() {
@@ -9,6 +9,7 @@ export default async function DashboardPage() {
   if (!userCookie) return null;
   const user = JSON.parse(userCookie.value);
   const summary = await getDashboardSummary(user.companyId);
+  const todayTopics = getTodayIndustryTopics(summary.companyIndustry);
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in">
@@ -36,12 +37,18 @@ export default async function DashboardPage() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card p-6">
           <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4" /> 热门问题
+            <MessageSquare className="w-4 h-4" /> 今日行业热点
           </h2>
+          <p className="text-xs text-text-muted mb-3">基于企业行业与知识库，整理今天值得关注的话题</p>
           <div className="space-y-2">
-            {['客户嫌代运营服务太贵怎么回复？', '探店拍摄的标准流程是什么？', '如何提高直播间转化率？', '新员工培训需要多久？'].map((q, i) => (
-              <Link key={i} href="/dashboard/chat" className="block px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all">
-                {q}
+            {todayTopics.map((topic) => (
+              <Link
+                key={topic.question}
+                href={{ pathname: '/dashboard/chat', query: { q: topic.question } }}
+                className="flex items-start justify-between gap-3 px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:bg-surface-secondary hover:text-text-primary transition-all"
+              >
+                <span>{topic.title}</span>
+                <ArrowUpRight className="w-4 h-4 flex-shrink-0 mt-0.5 text-text-muted" />
               </Link>
             ))}
           </div>

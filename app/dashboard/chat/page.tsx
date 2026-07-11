@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Send, Copy, Download, ThumbsUp, ThumbsDown, FileText, Bot, Loader2, Zap, ZapOff } from 'lucide-react';
 
 interface Message {
@@ -10,6 +11,7 @@ interface Message {
 }
 
 export default function ChatPage() {
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -24,6 +26,11 @@ export default function ChatPage() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  useEffect(() => {
+    const question = searchParams.get('q');
+    if (question) setInput(question);
+  }, [searchParams]);
 
   function handleCopy(text: string) { navigator.clipboard.writeText(text); }
 
