@@ -1,34 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { testLanguageConnection } from '@/lib/ai/language-provider';
-import { testImageConnection } from '@/lib/ai/image-provider';
-import { testEmbeddingConnection } from '@/lib/ai/embedding-provider';
 
-export async function POST(request: NextRequest) {
+function hasSession(request: NextRequest) {
+  const userCookie = request.cookies.get('qikuku_user');
+  if (!userCookie) return false;
   try {
-    const body = await request.json();
-    const { provider, apiKey, baseUrl, model } = body;
-
-    if (!provider || !apiKey || !baseUrl || !model) {
-      return NextResponse.json({ error: '缺少参数' }, { status: 400 });
-    }
-
-    let result;
-    switch (provider) {
-      case 'language':
-        result = await testLanguageConnection(apiKey, baseUrl, model);
-        break;
-      case 'image':
-        result = await testImageConnection(apiKey, baseUrl, model);
-        break;
-      case 'embedding':
-        result = await testEmbeddingConnection(apiKey, baseUrl, model);
-        break;
-      default:
-        return NextResponse.json({ error: '未知 provider' }, { status: 400 });
-    }
-
-    return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const user = JSON.parse(userCookie.value);
+    return Boolean(user?.id && user?.companyId);
+  } catch {
+    return false;
   }
+}
+
+export async function GET(request: NextRequest) {
+  if (!hasSession(request)) return NextResponse.json({ error: '未登录' }, { status: 401 });
+
+  // Only expose platform capability state. Keys, Base URLs and concrete model names stay server-side.
+  const providers = [
+    {
+      id: 'language',
+      title: '企业 AI 问答模型',
+      description: '用于企业知识库问答与管理分析',
+      configured: Boolean(process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_BASE_URL && process.env.DEEPSEEK_MODEL),
+    },
+    {
+      id: 'image',
+      title: '企业图像生成模型',
+      description: '用于企业宣传图、海报和内容素材生成',
+      configured: Boolean(process.env.IMAGE_API_KEY && process.env.IMAGE_BASE_URL && process.env.IMAGE_MODEL),
+    },
+    {
+      id: 'embedding',
+      title: '知识库向量模型',
+      description: '用于企业资料检索与知识库增强',
+      configured: Boolean(process.env.EMBEDDING_API_KEY && process.env.EMBEDDING_BASE_URL && process.env.EMBEDDING_MODEL),
+    },
+  ];
+
+  return NextResponse.json({ providers });
 }

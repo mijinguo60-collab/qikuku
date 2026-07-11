@@ -32,7 +32,7 @@ const menuGroups = [
     label: '管理',
     items: [
       { href: '/dashboard/settings', icon: Settings, label: '企业设置' },
-      { href: '/dashboard/settings/models', icon: Brain, label: '模型设置' },
+      { href: '/dashboard/settings/models', icon: Brain, label: '模型状态' },
       { href: '/dashboard/team', icon: Users, label: '成员管理' },
       { href: '/dashboard/leads', icon: BarChart3, label: '线索管理' },
       { href: '/dashboard/permissions', icon: Key, label: '权限管理' },

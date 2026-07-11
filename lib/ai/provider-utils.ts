@@ -17,11 +17,21 @@ export function buildOpenAiCompatibleEndpoint(baseUrl: string, path: string, mis
   return `${normalized}${hasV1Suffix ? '' : '/v1'}${path}`;
 }
 
-export function redactProviderBody(body: string): string {
+export function redactProviderBody(body: string, maxLength = 500): string {
   return body
-    .slice(0, 500)
+    .slice(0, maxLength)
     .replace(/(authorization|api[_-]?key|token|password)\s*([:=]|\")\s*[^\s,}\"]+/gi, '$1$2***')
     .replace(/\b(sk|pk)-[a-zA-Z0-9_-]{8,}\b/g, '$1-***');
+}
+
+export function extractProviderErrorMessage(body: string): string | null {
+  try {
+    const data = JSON.parse(body);
+    const message = data?.error?.message || data?.message || data?.error_description;
+    return typeof message === 'string' && message.trim() ? message.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 export function responseShape(value: unknown): Record<string, unknown> {

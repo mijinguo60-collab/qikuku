@@ -1,5 +1,5 @@
 /** 图片模型调用 - 支持 OpenAI 兼容的文生图与图片编辑。 */
-import { buildOpenAiCompatibleEndpoint, providerStatusMessage, redactProviderBody, responseShape } from './provider-utils';
+import { buildOpenAiCompatibleEndpoint, extractProviderErrorMessage, providerStatusMessage, redactProviderBody, responseShape } from './provider-utils';
 
 const DEFAULT_SIZES = ['1024x1024', '1024x1792', '1792x1024'] as const;
 
@@ -73,7 +73,17 @@ async function requestImage(options: ImageGenerationOptions, kind: 'generations'
 
   if (!res.ok) {
     const bodyText = await res.text();
-    console.error('[IMAGE] Provider response error', { status: res.status, body: redactProviderBody(bodyText) });
+    const providerMessage = extractProviderErrorMessage(bodyText);
+    console.error('[IMAGE] Provider response error', {
+      status: res.status,
+      requestUrl: url,
+      model,
+      responseBody: redactProviderBody(bodyText, 1000),
+      providerMessage: providerMessage ? redactProviderBody(providerMessage, 300) : null,
+    });
+    if (res.status === 429) {
+      throw new Error('图片模型被上游拒绝：429。可能原因：额度不足 / 模型无权限 / 频率限制 / 模型名不支持。请查看 Vercel Logs 或上游平台调用记录。');
+    }
     throw new Error(providerStatusMessage('图片', res.status));
   }
 
@@ -106,7 +116,7 @@ export async function testImageConnection(apiKey: string, baseUrl: string, model
     });
     if (res.ok) return { ok: true, msg: '连接成功 ✓ 模型可用' };
     const body = await res.text();
-    console.error('[IMAGE] Connection test failed', { status: res.status, body: redactProviderBody(body) });
+    console.error('[IMAGE] Connection test failed', { status: res.status, requestUrl: url, model, responseBody: redactProviderBody(body, 1000) });
     return { ok: false, msg: providerStatusMessage('图片', res.status) };
   } catch (error: any) {
     if (error.name === 'TimeoutError' || error.message?.includes('timeout')) return { ok: false, msg: '网络请求超时，请检查 Base URL' };
