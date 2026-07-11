@@ -48,6 +48,12 @@ if (hasBlobToken) {
   console.log('! BLOB_READ_WRITE_TOKEN missing — 开发环境可使用本地存储；生产环境图片持久化需要配置。');
 }
 
+const imageEditReady = process.env.IMAGE_EDIT_ENABLED === 'true'
+  && Boolean(process.env.IMAGE_EDIT_API_KEY)
+  && validHttpUrl(process.env.IMAGE_EDIT_BASE_URL)
+  && Boolean(process.env.IMAGE_EDIT_MODEL);
+console.log(`${imageEditReady ? '✓' : '!'} 图生图通道 ${imageEditReady ? '已配置' : '未配置（参考图生成会提示联系管理员）'}`);
+
 if (failed) {
   console.log('\ncheck:models: FAIL — 请补齐或修正上方模型配置。');
   process.exitCode = 1;

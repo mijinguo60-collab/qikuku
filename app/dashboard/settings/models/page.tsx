@@ -4,16 +4,17 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, Brain, CheckCircle2, Database, Image, Loader2, ShieldCheck } from 'lucide-react';
 
 interface ProviderStatus {
-  id: 'language' | 'image' | 'embedding';
+  id: 'language' | 'image' | 'image-edit' | 'embedding';
   title: string;
   description: string;
   configured: boolean;
 }
 
-const providerIcons = { language: Brain, image: Image, embedding: Database };
+const providerIcons = { language: Brain, image: Image, 'image-edit': Image, embedding: Database };
 const providerColors = {
   language: 'bg-accent-blue/10 text-accent-blue',
   image: 'bg-accent-cyan/10 text-accent-cyan',
+  'image-edit': 'bg-accent-cyan/10 text-accent-cyan',
   embedding: 'bg-accent-purple/10 text-accent-purple',
 };
 

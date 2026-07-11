@@ -173,8 +173,23 @@ export default function ImagesPage() {
           <div className="max-w-3xl mx-auto">
             {referenceImage && <div className="flex items-center gap-3 mb-3"><img src={referenceImage} alt={referenceImageName || '参考图'} className="w-12 h-12 rounded-xl object-cover border border-border-light" /><span className="text-xs text-text-secondary truncate flex-1">参考图：{referenceImageName || '已选择'}</span><button onClick={() => { setReferenceImage(null); setReferenceImageName(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted" aria-label="删除参考图"><X className="w-4 h-4" /></button></div>}
             <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleReferenceUpload} className="sr-only" />
-            <div className="flex items-center gap-2 bg-surface-secondary rounded-3xl px-4 py-2 border border-border-light focus-within:border-border-medium"><button onClick={() => fileInputRef.current?.click()} className="w-8 h-8 rounded-full bg-white border border-border-light flex items-center justify-center flex-shrink-0 hover:bg-surface-hover" aria-label="上传参考图"><Upload className="w-3.5 h-3.5 text-text-muted" /></button><input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void handleGenerate()} placeholder="描述你想要生成或参考图改造的内容..." className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1" /><button onClick={() => void handleGenerate()} disabled={loading || !input.trim()} className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40"><Send className="w-4 h-4 text-white" /></button></div>
-            <div className="flex items-center gap-3 mt-2 px-1"><select value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value)} className="text-[11px] bg-transparent text-text-muted outline-none">{ASPECT_RATIOS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span className="text-[10px] text-text-muted">支持上传 PNG、JPG、JPEG、WebP 参考图（最大 10MB）</span></div>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <button onClick={() => fileInputRef.current?.click()} className={`btn-secondary text-xs flex items-center gap-1.5 ${referenceImage ? 'border-accent-cyan/40 text-accent-cyan' : ''}`}>
+                <Upload className="w-3.5 h-3.5" /> 上传参考图
+              </button>
+              <span className={`text-[11px] px-2.5 py-1 rounded-full ${referenceImage ? 'bg-accent-cyan/10 text-accent-cyan' : 'bg-surface-tertiary text-text-muted'}`}>
+                {referenceImage ? '参考图生成' : '文生图'}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {ASPECT_RATIOS.map((option) => (
+                  <button key={option.value} onClick={() => setAspectRatio(option.value)} className={`px-2.5 py-1 rounded-lg text-[11px] transition-colors ${aspectRatio === option.value ? 'bg-text-primary text-white' : 'bg-surface-secondary text-text-secondary hover:text-text-primary'}`}>
+                    {option.value}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 bg-surface-secondary rounded-3xl px-4 py-2 border border-border-light focus-within:border-border-medium"><input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void handleGenerate()} placeholder={referenceImage ? '描述你想如何参考或改造这张图片...' : '描述你想要生成的图片...'} className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1" /><button onClick={() => void handleGenerate()} disabled={loading || !input.trim()} className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40"><Send className="w-4 h-4 text-white" /></button></div>
+            <p className="text-[10px] text-text-muted mt-2 px-1">支持上传 PNG、JPG、JPEG、WebP 参考图（最大 10MB）</p>
           </div>
         </div>
       </div>

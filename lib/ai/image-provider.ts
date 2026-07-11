@@ -21,8 +21,7 @@ export interface ImageGenerationResponse {
 export function getImageCapabilities() {
   return {
     textToImage: true,
-    // Enable only for channels verified to accept image input at the OpenAI-compatible edits endpoint.
-    imageToImage: process.env.IMAGE_SUPPORTS_IMAGE_INPUT === 'true',
+    imageToImage: getImageEditConfig().isReady,
   };
 }
 
@@ -47,6 +46,15 @@ export function getImageConfig() {
   return { apiKeyExists: !!apiKey, baseUrlExists: !!baseUrl, model, isReady: !error, error, apiKey, baseUrl };
 }
 
+export function getImageEditConfig() {
+  const enabled = process.env.IMAGE_EDIT_ENABLED === 'true';
+  const apiKey = process.env.IMAGE_EDIT_API_KEY || '';
+  const baseUrl = process.env.IMAGE_EDIT_BASE_URL || '';
+  const model = process.env.IMAGE_EDIT_MODEL || '';
+  const isReady = enabled && !!apiKey && !!baseUrl && !!model;
+  return { enabled, apiKeyExists: !!apiKey, baseUrlExists: !!baseUrl, modelExists: !!model, model, isReady, error: isReady ? '' : '图生图通道未配置，请联系管理员', apiKey, baseUrl };
+}
+
 function collectImages(data: any): string[] {
   if (!Array.isArray(data?.data)) return [];
   return data.data.flatMap((item: any) => {
@@ -56,28 +64,41 @@ function collectImages(data: any): string[] {
   });
 }
 
+function dataUrlToBlob(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error('参考图格式无效');
+  const bytes = Buffer.from(match[2], 'base64');
+  return new Blob([bytes], { type: match[1] });
+}
+
 async function requestImage(options: ImageGenerationOptions, kind: 'generations' | 'edits'): Promise<ImageGenerationResponse> {
-  const config = getImageConfig();
-  const apiKey = options.apiKey || config.apiKey;
-  const baseUrl = options.baseUrl || config.baseUrl;
-  const model = options.model || config.model;
-  if (!apiKey) throw new Error('图片 API Key 未配置，请设置 IMAGE_API_KEY');
+  const editConfig = kind === 'edits' ? getImageEditConfig() : null;
+  const textConfig = kind === 'generations' ? getImageConfig() : null;
+  if (editConfig && !editConfig.isReady) throw new Error(editConfig.error);
+  const apiKey = options.apiKey || (editConfig ? editConfig.apiKey : textConfig?.apiKey) || '';
+  const baseUrl = options.baseUrl || (editConfig ? editConfig.baseUrl : textConfig?.baseUrl) || '';
+  const model = options.model || (editConfig ? editConfig.model : textConfig?.model) || '';
+  if (!apiKey || !baseUrl || !model) throw new Error(kind === 'edits' ? '图生图通道未配置，请联系管理员' : '图片 API 配置不完整，请联系管理员');
   const url = buildImageEndpoint(baseUrl, kind);
 
-  const body: Record<string, unknown> = {
-    model,
-    prompt: options.prompt,
-    n: options.n || 1,
-    size: options.size || process.env.IMAGE_DEFAULT_SIZE || '1024x1024',
-    response_format: 'url',
-  };
-  if (kind === 'edits' && options.sourceImage) body.image = options.sourceImage;
+  let requestBody: BodyInit;
+  let headers: HeadersInit = { Authorization: `Bearer ${apiKey}` };
+  if (kind === 'edits') {
+    if (!options.sourceImage) throw new Error('参考图不能为空');
+    const form = new FormData();
+    form.append('model', model);
+    form.append('prompt', options.prompt);
+    form.append('image', dataUrlToBlob(options.sourceImage), 'reference-image.png');
+    if (options.n) form.append('n', String(options.n));
+    if (options.size) form.append('size', options.size);
+    form.append('response_format', 'url');
+    requestBody = form;
+  } else {
+    headers = { ...headers, 'Content-Type': 'application/json' };
+    requestBody = JSON.stringify({ model, prompt: options.prompt, n: options.n || 1, size: options.size || process.env.IMAGE_DEFAULT_SIZE || '1024x1024', response_format: 'url' });
+  }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify(body),
-  });
+  const res = await fetch(url, { method: 'POST', headers, body: requestBody });
 
   if (!res.ok) {
     const bodyText = await res.text();
@@ -89,10 +110,11 @@ async function requestImage(options: ImageGenerationOptions, kind: 'generations'
       responseBody: redactProviderBody(bodyText, 1000),
       providerMessage: providerMessage ? redactProviderBody(providerMessage, 300) : null,
     });
+    const providerLabel = kind === 'edits' ? '图生图' : '图片';
     if (res.status === 429) {
-      throw new Error('图片模型被上游拒绝：429。可能原因：额度不足 / 模型无权限 / 频率限制 / 模型名不支持。请查看 Vercel Logs 或上游平台调用记录。');
+      throw new Error(`${providerLabel}接口被上游拒绝：429。可能原因：额度不足 / 模型无权限 / 频率限制 / 模型名不支持。请查看 Vercel Logs 或上游平台调用记录。`);
     }
-    throw new Error(providerStatusMessage('图片', res.status));
+    throw new Error(providerStatusMessage(providerLabel, res.status));
   }
 
   const data = await res.json();
@@ -106,9 +128,6 @@ async function requestImage(options: ImageGenerationOptions, kind: 'generations'
 
 export async function generateImage(options: ImageGenerationOptions): Promise<ImageGenerationResponse> {
   if (options.sourceImage) {
-    if (!getImageCapabilities().imageToImage) {
-      throw new Error('当前图片通道暂不支持参考图生成，请更换支持图生图的图片接口或关闭参考图后重试。');
-    }
     return requestImage(options, 'edits');
   }
   return requestImage(options, 'generations');

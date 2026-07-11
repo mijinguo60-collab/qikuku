@@ -29,6 +29,12 @@ export async function GET(request: NextRequest) {
       configured: Boolean(process.env.IMAGE_API_KEY && process.env.IMAGE_BASE_URL && process.env.IMAGE_MODEL),
     },
     {
+      id: 'image-edit',
+      title: '图片图生图通道',
+      description: '用于参考图生成与图片编辑',
+      configured: Boolean(process.env.IMAGE_EDIT_ENABLED === 'true' && process.env.IMAGE_EDIT_API_KEY && process.env.IMAGE_EDIT_BASE_URL && process.env.IMAGE_EDIT_MODEL),
+    },
+    {
       id: 'embedding',
       title: '知识库向量模型',
       description: '用于企业资料检索与知识库增强',
