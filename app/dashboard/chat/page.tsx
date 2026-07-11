@@ -1,80 +1,100 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Send, Copy, Download, ThumbsUp, ThumbsDown, FileText, Bot, Loader2, Zap, ZapOff } from 'lucide-react';
+import { Bot, Copy, Loader2, Send, Zap, ZapOff } from 'lucide-react';
+import ConversationHistory, { ConversationSummary } from '@/components/dashboard/ConversationHistory';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: { filename: string; space: string }[];
+  sources?: { filename: string; excerpt?: string; score?: number }[];
 }
+
+const welcomeMessage: Message = {
+  id: 'welcome',
+  role: 'assistant',
+  content: '你好！我是企库库 AI 助手。我会结合企业知识库帮助你快速找到可复用的答案。',
+};
 
 export default function ChatPage() {
   const searchParams = useSearchParams();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: '你好！我是企库库 AI 助手。我基于企业知识库回答你的问题。\n\n试试这些问题：\n• 客户嫌代运营服务太贵怎么回复？\n• 探店拍摄的标准流程是什么？\n• 新员工培训需要多久？',
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [useRealApi, setUseRealApi] = useState(true);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [historyRevision, setHistoryRevision] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
   useEffect(() => {
     const question = searchParams.get('q');
     if (question) setInput(question);
   }, [searchParams]);
 
-  function handleCopy(text: string) { navigator.clipboard.writeText(text); }
+  async function createSession(): Promise<ConversationSummary | null> {
+    try {
+      const response = await fetch('/api/chat-sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'knowledge' }) });
+      const data = await response.json();
+      if (!response.ok) return null;
+      setSessionId(data.session.id);
+      setMessages([welcomeMessage]);
+      return data.session;
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadSession(id: string) {
+    if (loading) return;
+    const response = await fetch(`/api/chat-sessions/${id}`);
+    const data = await response.json();
+    if (!response.ok) return;
+    setSessionId(data.session.id);
+    const restored = (data.messages || []).filter((message: Message) => message.role === 'user' || message.role === 'assistant');
+    setMessages(restored.length ? restored : [welcomeMessage]);
+  }
 
   async function handleSend() {
-    if (!input.trim() || loading) return;
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: input.trim() };
-    setMessages(prev => [...prev, userMsg]);
+    const question = input.trim();
+    if (!question || loading) return;
+    const userMsg: Message = { id: `local-${Date.now()}`, role: 'user', content: question };
+    const assistantId = `local-${Date.now() + 1}`;
+    const conversation = [
+      ...messages.filter((message) => message.id !== 'welcome' && message.content && !message.content.startsWith('❌')).map((message) => ({ role: message.role, content: message.content })),
+      { role: 'user' as const, content: question },
+    ];
+    setMessages((current) => [...current, userMsg, { id: assistantId, role: 'assistant', content: '' }]);
     setInput('');
     setLoading(true);
 
     if (!useRealApi) {
-      // Mock fallback
-      setTimeout(() => {
-        setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: mockReply(input) }]);
+      window.setTimeout(() => {
+        setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: '这是演示模式回复。接入企业模型后，回答会结合当前企业知识库中的资料生成。' } : message));
         setLoading(false);
-      }, 1200);
+      }, 700);
       return;
     }
 
-    // Real API call
-    const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
-
     try {
-      abortRef.current = new AbortController();
-      const res = await fetch('/api/ai/chat', {
+      const response = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-        body: JSON.stringify({
-          mode: 'knowledge',
-          messages: [
-            ...messages.filter(m => m.id !== 'welcome').map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-            { role: 'user', content: userMsg.content },
-          ],
-        }),
-        signal: abortRef.current.signal,
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify({ mode: 'knowledge', sessionId, messages: conversation }),
       });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `请求失败（${response.status}）`);
+      }
 
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error('No reader');
-
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('服务未返回可读取内容');
       const decoder = new TextDecoder();
-      let fullContent = '';
       let buffer = '';
+      let fullContent = '';
+      let backendError = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -82,115 +102,73 @@ export default function ChatPage() {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
+        for (const rawLine of lines) {
+          if (!rawLine.startsWith('data:')) continue;
+          const payload = rawLine.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
           try {
-            const parsed = JSON.parse(data);
-            if (parsed.content) {
-              fullContent += parsed.content;
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fullContent } : m));
+            const event = JSON.parse(payload);
+            if (event.sessionId) setSessionId(event.sessionId);
+            if (event.content) {
+              fullContent += event.content;
+              setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: fullContent } : message));
             }
-            if (parsed.error) {
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `❌ 错误: ${parsed.error}` } : m));
-            }
-          } catch {}
+            if (event.sources) setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, sources: event.sources } : message));
+            if (event.error) backendError = event.error;
+          } catch {
+            backendError = '模型返回格式无法解析';
+          }
         }
       }
-      if (!fullContent) {
-        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: '⚠️ AI 没有返回内容，请重试' } : m));
-      }
-    } catch (e: any) {
-      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: `❌ 请求失败: ${e.message || '网络错误'}` } : m));
-    }
-    setLoading(false);
-  }
 
-  function mockReply(text: string) {
-    if (text.includes('嫌') || text.includes('贵')) return '**建议回复：** "我理解您的顾虑。我们合作过的商家平均 ROI 是 1:5，服务费只占不到 5%。"';
-    if (text.includes('拍摄') || text.includes('探店')) return '**标准流程：** 1. 提前沟通需求 2. 准备设备 3. 到店拍摄 4. 剪辑发布。详见《探店拍摄 SOP.pdf》';
-    return '基于企业知识库，我暂时无法给出确定答案。建议补充相关资料。';
+      if (backendError) {
+        setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: `❌ ${backendError}` } : message));
+      } else if (!fullContent.trim()) {
+        setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: '❌ 模型接口返回空内容' } : message));
+      }
+      setHistoryRevision((value) => value + 1);
+    } catch (error: any) {
+      setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: `❌ ${error.message || '请求失败，请稍后重试'}` } : message));
+      setHistoryRevision((value) => value + 1);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="flex h-[calc(100vh-0px)]">
-      <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
+    <div className="flex h-[calc(100vh-0px)] min-h-[560px]">
+      <ConversationHistory mode="knowledge" activeSessionId={sessionId} refreshKey={historyRevision} onSelect={loadSession} onCreate={createSession} />
+      <div className="flex-1 min-w-0 flex flex-col">
         <div className="px-6 py-4 border-b border-border-light flex items-center gap-3 justify-between">
           <div className="flex items-center gap-3">
             <Bot className="w-5 h-5 text-accent-blue" />
-            <div>
-              <h2 className="text-sm font-semibold">企业知识库问答</h2>
-              <p className="text-[11px] text-text-muted">
-                {useRealApi ? 'DeepSeek V4 Flash · 流式输出' : 'Mock 演示模式'}
-              </p>
-            </div>
+            <div><h2 className="text-sm font-semibold">企业知识库问答</h2><p className="text-[11px] text-text-muted">{useRealApi ? '企业 AI 模型 · 知识库增强' : '演示模式'}</p></div>
           </div>
-          <button
-            onClick={() => setUseRealApi(!useRealApi)}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${
-              useRealApi ? 'bg-success/10 text-success' : 'bg-surface-tertiary text-text-muted'
-            }`}
-            title={useRealApi ? '切换至 Mock 模式' : '切换至真实 API'}
-          >
-            {useRealApi ? <Zap className="w-3.5 h-3.5" /> : <ZapOff className="w-3.5 h-3.5" />}
-            {useRealApi ? 'API 模式' : 'Mock 模式'}
+          <button onClick={() => setUseRealApi((value) => !value)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all ${useRealApi ? 'bg-success/10 text-success' : 'bg-surface-tertiary text-text-muted'}`}>
+            {useRealApi ? <Zap className="w-3.5 h-3.5" /> : <ZapOff className="w-3.5 h-3.5" />}{useRealApi ? 'API 模式' : '演示模式'}
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {messages.map(msg => (
-            <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
-              {msg.role === 'assistant' && (
-                <div className="w-7 h-7 rounded-full bg-accent-purple/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-[10px] font-bold text-accent-purple">AI</span>
-                </div>
-              )}
-              <div className={`max-w-[85%] ${msg.role === 'user' ? 'bg-text-primary text-white rounded-2xl rounded-tr-md px-4 py-2.5' : ''}`}>
-                {msg.role === 'assistant' ? (
-                  <div className="space-y-3">
-                    <div className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{msg.content}</div>
-                    {msg.id !== 'welcome' && msg.content && (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleCopy(msg.content)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted"><Copy className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted"><ThumbsUp className="w-3.5 h-3.5" /></button>
-                        <button className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted"><ThumbsDown className="w-3.5 h-3.5" /></button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm leading-relaxed">{msg.content}</p>
-                )}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 max-w-3xl w-full mx-auto">
+          {messages.map((message) => (
+            <div key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+              {message.role === 'assistant' && <div className="w-7 h-7 rounded-full bg-accent-purple/10 flex items-center justify-center flex-shrink-0"><span className="text-[10px] font-bold text-accent-purple">AI</span></div>}
+              <div className={`max-w-[85%] ${message.role === 'user' ? 'bg-text-primary text-white rounded-2xl rounded-tr-md px-4 py-2.5' : ''}`}>
+                <div className={`text-sm leading-relaxed whitespace-pre-wrap ${message.role === 'assistant' ? 'text-text-primary' : ''}`}>{message.content}</div>
+                {message.role === 'assistant' && message.id !== 'welcome' && message.content && !message.content.startsWith('❌') && <div className="flex items-center gap-2 mt-2"><button onClick={() => navigator.clipboard.writeText(message.content)} className="p-1.5 rounded-lg hover:bg-surface-hover text-text-muted"><Copy className="w-3.5 h-3.5" /></button>{message.sources?.length ? <span className="text-[10px] text-text-muted">引用 {message.sources.length} 条企业资料</span> : null}</div>}
               </div>
             </div>
           ))}
-          {loading && (
-            <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-accent-purple/10 flex items-center justify-center">
-                <Loader2 className="w-4 h-4 text-accent-purple animate-spin" />
-              </div>
-              <div className="text-sm text-text-muted py-2">思考中...</div>
-            </div>
-          )}
+          {loading && <div className="flex gap-3"><div className="w-7 h-7 rounded-full bg-accent-purple/10 flex items-center justify-center"><Loader2 className="w-4 h-4 text-accent-purple animate-spin" /></div><span className="text-sm text-text-muted py-1">正在生成回答…</span></div>}
           <div ref={messagesEndRef} />
         </div>
 
         <div className="px-6 py-4 border-t border-border-light">
-          <div className="flex items-center gap-2 bg-surface-secondary rounded-3xl px-4 py-2 border border-border-light focus-within:border-border-medium transition-all">
-            <input
-              type="text" value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder="输入问题，基于企业知识库回答..."
-              className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1"
-            />
-            <button onClick={handleSend} disabled={loading || !input.trim()}
-              className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:bg-text-primary/90 transition-colors">
-              <Send className="w-4 h-4 text-white" />
-            </button>
+          <div className="max-w-3xl mx-auto flex items-center gap-2 bg-surface-secondary rounded-3xl px-4 py-2 border border-border-light focus-within:border-border-medium transition-all">
+            <input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && !event.shiftKey && void handleSend()} placeholder="输入问题，基于企业知识库回答..." className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1" />
+            <button onClick={() => void handleSend()} disabled={loading || !input.trim()} className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40"><Send className="w-4 h-4 text-white" /></button>
           </div>
-          <p className="text-[10px] text-text-muted text-center mt-2">
-            回答基于企业知识库，AI 不会编造信息。涉及报价、合同等内容请以正式文件为准。
-          </p>
+          <p className="text-[10px] text-text-muted text-center mt-2">回答基于企业知识库。涉及报价、合同等内容请以正式文件为准。</p>
         </div>
       </div>
     </div>

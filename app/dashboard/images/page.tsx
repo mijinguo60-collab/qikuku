@@ -19,19 +19,19 @@ export default function ImagesPage() {
   const [loading, setLoading] = useState(false);
   const [useRealApi, setUseRealApi] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  async function handleGenerate() {
-    if (!input.trim() || loading) return;
-    const userMsg: ImageMsg = { id: Date.now().toString(), role: 'user', prompt: input.trim() };
+  async function handleGenerate(promptOverride?: string) {
+    const prompt = (promptOverride || input).trim();
+    if (!prompt || loading) return;
+    const userMsg: ImageMsg = { id: Date.now().toString(), role: 'user', prompt };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
     const assistantId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', prompt: input.trim() }]);
+    setMessages(prev => [...prev, { id: assistantId, role: 'assistant', prompt }]);
 
     if (!useRealApi) {
       setTimeout(() => {
@@ -45,15 +45,15 @@ export default function ImagesPage() {
       const res = await fetch('/api/ai/images', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: input.trim(), size: selectedSize }),
+        body: JSON.stringify({ prompt, size: selectedSize }),
       });
       const data = await res.json();
-      if (data.error) {
+      if (!res.ok || data.error) {
         setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, error: data.error } : m));
-      } else if (data.imageUrls?.length > 0) {
-        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, imageUrl: data.imageUrls[0] } : m));
+      } else if (data.images?.[0]?.url) {
+        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, imageUrl: data.images[0].url } : m));
       } else {
-        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, error: '未返回图片' } : m));
+        setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, error: '图片接口返回空内容' } : m));
       }
     } catch (e: any) {
       setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, error: e.message } : m));
@@ -72,10 +72,10 @@ export default function ImagesPage() {
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-3">企业版 AI 做图</h2>
           <p className="text-sm text-text-secondary mb-8 leading-relaxed">
-            像使用 ChatGPT Image 一样，用自然语言描述你想要的设计。支持文生图和多轮修改。
+            像和设计助理沟通一样，用自然语言生成企业所需图片。
           </p>
           <button
-            onClick={() => { setInput('做一张企库库官网宣传图，纯白背景，Apple 风格，高级极简，中心是企业 AI 大脑抽象视觉，蓝紫色轻微点缀，16:9'); handleGenerate(); }}
+            onClick={() => void handleGenerate('做一张企库库官网宣传图，纯白背景，Apple 风格，高级极简，中心是企业 AI 大脑抽象视觉，蓝紫色轻微点缀，16:9')}
             className="text-left w-full px-4 py-3 rounded-xl bg-surface-secondary hover:bg-surface-hover transition-all text-sm text-text-secondary mb-6">
             "做一张企库库官网宣传图，纯白背景，Apple 风格..."
           </button>
@@ -85,7 +85,7 @@ export default function ImagesPage() {
               onKeyDown={e => e.key === 'Enter' && handleGenerate()}
               placeholder="描述你想要生成的图片..."
               className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1" />
-            <button onClick={handleGenerate} disabled={!input.trim()}
+            <button onClick={() => void handleGenerate()} disabled={!input.trim()}
               className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center disabled:opacity-40">
               <Send className="w-4 h-4 text-white" />
             </button>
@@ -104,7 +104,7 @@ export default function ImagesPage() {
             <div>
               <h2 className="text-sm font-semibold">AI 做图</h2>
               <p className="text-[11px] text-text-muted">
-                {useRealApi ? 'gpt-image-2 API' : '演示模式'}
+                {useRealApi ? '企业图像生成模型 · API 模式' : '演示模式'}
               </p>
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function ImagesPage() {
               onKeyDown={e => e.key === 'Enter' && handleGenerate()}
               placeholder="描述你想要生成或修改的内容..."
               className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1" />
-            <button onClick={handleGenerate} disabled={loading || !input.trim()}
+            <button onClick={() => void handleGenerate()} disabled={loading || !input.trim()}
               className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40">
               <Send className="w-4 h-4 text-white" />
             </button>
@@ -194,7 +194,7 @@ export default function ImagesPage() {
               className="text-[10px] bg-transparent text-text-muted outline-none">
               {SIZE_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
-            <span className="text-[10px] text-text-muted">gpt-image-2</span>
+            <span className="text-[10px] text-text-muted">企业图像生成服务</span>
           </div>
         </div>
       </div>

@@ -1,69 +1,48 @@
-/**
- * Unified LLM Provider — wraps language-provider with logging, timing, mock fallback
- */
+/** Unified LLM provider with configuration checks shared by chat and Skill chat. */
 import { chatCompletion, chatCompletionStream, ChatCompletionOptions, testLanguageConnection } from './language-provider';
 
 export interface LlmResult {
   answer: string;
   model: string;
-  modelStatus: 'live' | 'mock' | 'error';
+  modelStatus: 'live' | 'error';
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
   latencyMs: number;
   error?: string;
 }
 
-const KEY = process.env.DEEPSEEK_API_KEY || '';
-const URL = process.env.DEEPSEEK_BASE_URL || '';
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-
 export function getLlmConfig() {
-  return {
-    apiKeyExists: !!KEY,
-    baseUrlExists: !!URL,
-    model: MODEL,
-    isReady: !!KEY && !!URL,
-  };
+  const apiKey = process.env.DEEPSEEK_API_KEY || '';
+  const baseUrl = process.env.DEEPSEEK_BASE_URL || '';
+  const model = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+  const error = !baseUrl
+    ? '模型 API 地址未配置，请设置 DEEPSEEK_BASE_URL'
+    : !apiKey
+      ? '模型 API Key 未配置，请设置 DEEPSEEK_API_KEY'
+      : '';
+  return { apiKeyExists: !!apiKey, baseUrlExists: !!baseUrl, model, isReady: !error, error, apiKey, baseUrl };
 }
 
-export async function llmChatCompletion(opts: ChatCompletionOptions): Promise<LlmResult> {
-  const start = Date.now();
-  if (!getLlmConfig().isReady) {
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isProd) {
-      return { answer: '', model: 'none', modelStatus: 'error', latencyMs: 0, error: '生产环境未配置语言模型 API' };
-    }
-    // Development mock
-    return {
-      answer: '⚠️ Mock 回复 — 未配置语言模型 API。生产环境下将无法生成正式回答。',
-      model: 'mock',
-      modelStatus: 'mock',
-      latencyMs: Date.now() - start,
-    };
-  }
+function configuredOptions(options: ChatCompletionOptions): ChatCompletionOptions {
+  const config = getLlmConfig();
+  if (!config.isReady) throw new Error(config.error);
+  return { ...options, apiKey: config.apiKey, baseUrl: config.baseUrl, model: options.model || config.model };
+}
 
+export async function llmChatCompletion(options: ChatCompletionOptions): Promise<LlmResult> {
+  const start = Date.now();
+  const config = getLlmConfig();
+  if (!config.isReady) return { answer: '', model: config.model, modelStatus: 'error', latencyMs: 0, error: config.error };
   try {
-    const result = await chatCompletion({
-      ...opts,
-      apiKey: KEY,
-      baseUrl: URL,
-      model: MODEL,
-    });
-    return {
-      answer: result.answer,
-      model: MODEL,
-      modelStatus: 'live',
-      usage: result.usage,
-      latencyMs: Date.now() - start,
-    };
-  } catch (e: any) {
-    return {
-      answer: '',
-      model: MODEL,
-      modelStatus: 'error',
-      latencyMs: Date.now() - start,
-      error: e.message || 'API 调用失败',
-    };
+    const result = await chatCompletion(configuredOptions(options));
+    return { answer: result.answer, model: config.model, modelStatus: 'live', usage: result.usage, latencyMs: Date.now() - start };
+  } catch (error: any) {
+    return { answer: '', model: config.model, modelStatus: 'error', latencyMs: Date.now() - start, error: error.message || '模型接口调用失败' };
   }
+}
+
+export async function* llmChatCompletionStream(options: ChatCompletionOptions) {
+  const stream = chatCompletionStream(configuredOptions(options));
+  for await (const chunk of stream) yield chunk;
 }
 
 export { chatCompletion, chatCompletionStream, testLanguageConnection };

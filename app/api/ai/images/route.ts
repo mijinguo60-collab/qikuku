@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateImage } from '@/lib/ai/image-provider';
+import { generateImage, getImageConfig } from '@/lib/ai/image-provider';
 import { buildImagePrompt } from '@/lib/ai/image-prompt-builder';
 import { persistGeneratedImage } from '@/lib/ai/persist-generated-image';
 import { getDb } from '@/lib/db';
@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
     if (!userCookie) return NextResponse.json({ error: '未登录' }, { status: 401 });
     const user = JSON.parse(userCookie.value);
 
+    const imageConfig = getImageConfig();
+    if (!imageConfig.isReady) return NextResponse.json({ error: imageConfig.error }, { status: 503 });
+
     const n = Math.min(Math.max(parseInt(count) || 1, 1), MAX_COUNT);
     const selSize = VALID_SIZES.includes(size) ? size : '1024x1024';
 
@@ -40,8 +43,8 @@ export async function POST(request: NextRequest) {
     for (const item of result.imageUrls) {
       try {
         const persist = await persistGeneratedImage({
-          remoteUrl: typeof item === 'string' ? item : (item as any).url || '',
-          base64: (item as any).b64_json,
+          remoteUrl: typeof item === 'string' && !item.startsWith('data:') ? item : '',
+          base64: typeof item === 'string' && item.startsWith('data:') ? item : (item as any).b64_json,
           companyId: user.companyId,
           filename: `qikuku-${Date.now()}.png`,
         });
@@ -56,21 +59,26 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Save to DB with persistence info
-    const db = getDb();
-    const genId = uuid();
-    const now = new Date().toISOString();
-    const stmt = db.prepare(`INSERT INTO "ImageGeneration" (id, "companyId", "userId", prompt, "revisedPrompt", "imageUrl", "sourceImageUrl", model, size, purpose, style, status, "storageProvider", "storageKey", "rawProviderUrl", "createdAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
     const firstImgUrl = images[0]?.url || '';
-    await stmt.run(genId, user.companyId, user.id, prompt, result.revisedPrompt || finalPrompt, persistedUrl || firstImgUrl,
-      sourceImage || null, process.env.IMAGE_MODEL || 'gpt-image-2', selSize, purpose || null, style || null,
-      persistedUrl ? 'completed' : 'failed', pProvider || null, pKey || null, result.imageUrls[0] || null, now);
+    let generationId: string | null = null;
+    try {
+      const db = getDb();
+      generationId = uuid();
+      const now = new Date().toISOString();
+      const stmt = db.prepare(`INSERT INTO "ImageGeneration" (id, "companyId", "userId", prompt, "revisedPrompt", "imageUrl", "sourceImageUrl", model, size, purpose, style, status, "storageProvider", "storageKey", "rawProviderUrl", "createdAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      await stmt.run(generationId, user.companyId, user.id, prompt, result.revisedPrompt || finalPrompt, persistedUrl || firstImgUrl,
+        sourceImage || null, imageConfig.model, selSize, purpose || null, style || null,
+        firstImgUrl ? 'completed' : 'failed', pProvider || null, pKey || null, result.imageUrls[0] || null, now);
+    } catch (error: any) {
+      console.error('[IMAGE] Failed to save generation record', error.message);
+      persistStatus = 'failed';
+      warnings.push('图片已生成，但保存生成记录失败。');
+    }
 
     return NextResponse.json({
       images, prompt, finalPrompt: result.revisedPrompt || finalPrompt,
-      model: process.env.IMAGE_MODEL || 'gpt-image-2',
       imageStatus: 'live', persistStatus, warnings: warnings.filter(Boolean),
-      latencyMs: Date.now() - start, generationId: genId,
+      latencyMs: Date.now() - start, generationId,
     });
   } catch (e: any) {
     console.error('[IMAGE]', e.message);

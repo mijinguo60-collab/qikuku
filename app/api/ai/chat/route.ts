@@ -1,79 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { llmChatCompletion, chatCompletionStream } from '@/lib/ai/llm-provider';
+import { getLlmConfig, llmChatCompletion, llmChatCompletionStream } from '@/lib/ai/llm-provider';
 import { searchKnowledge } from '@/lib/ai/rag-pipeline';
 import { logAiCall } from '@/lib/ai/ai-logger';
+import { appendChatMessage, ensureChatSession, SessionOwner } from '@/lib/chat-sessions';
+
+function currentOwner(request: NextRequest): SessionOwner | null {
+  const cookie = request.cookies.get('qikuku_user');
+  if (!cookie) return null;
+  try {
+    const user = JSON.parse(cookie.value);
+    return user?.id && user?.companyId ? { id: user.id, companyId: user.companyId } : null;
+  } catch {
+    return null;
+  }
+}
+
+function sse(data: unknown) {
+  return `data: ${JSON.stringify(data)}\n\n`;
+}
 
 export async function POST(request: NextRequest) {
   const start = Date.now();
   try {
+    const owner = currentOwner(request);
+    if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
+
     const body = await request.json();
-    const { mode, messages } = body;
-    if (!messages || !Array.isArray(messages)) return NextResponse.json({ error: '缺少 messages' }, { status: 400 });
+    const messages = body.messages;
+    if (!Array.isArray(messages) || messages.length === 0) return NextResponse.json({ error: '缺少 messages' }, { status: 400 });
+    const userMsg = [...messages].reverse().find((message: any) => message.role === 'user' && typeof message.content === 'string');
+    const query = userMsg?.content?.trim() || '';
+    if (!query) return NextResponse.json({ error: '请输入问题' }, { status: 400 });
 
-    const userCookie = request.cookies.get('qikuku_user');
-    const user = userCookie ? JSON.parse(userCookie.value) : null;
-    const companyId = user?.companyId || 'demo-company-zhucheng';
+    const session = await ensureChatSession(owner, typeof body.sessionId === 'string' ? body.sessionId : undefined, 'knowledge');
+    await appendChatMessage(session, 'user', query);
 
-    // RAG retrieval
-    const userMsg = [...messages].reverse().find((m: any) => m.role === 'user');
-    const query = userMsg?.content || '';
-    const sources = companyId !== 'demo-company-zhucheng'
-      ? await searchKnowledge(query, companyId, 5).catch(() => [])
-      : [];
+    const sources = await searchKnowledge(query, owner.companyId, 5).catch(() => []);
+    const sourceOutput = sources.map((source) => ({ filename: source.source, excerpt: source.content.slice(0, 200), score: source.score, documentId: source.documentId }));
     const ragContext = sources.length > 0
-      ? '\n\n【企业知识库参考资料】\n' + sources.map((s, i) => `--- 资料${i + 1} (来源: ${s.source})\n${s.content}`).join('\n')
-      : '';
+      ? `\n\n【企业知识库参考资料】\n${sources.map((source, index) => `--- 资料${index + 1}（来源：${source.source}）\n${source.content}`).join('\n')}`
+      : '\n\n当前没有检索到相关企业资料。请明确说明资料不足，并给出应补充的资料建议，不要编造事实。';
+    const allMessages = [
+      { role: 'system' as const, content: `你是企库库企业知识库助手。回答应清晰、可执行，并优先引用企业资料。涉及报价、合同或法律事项时提醒以正式文件为准。${ragContext}` },
+      ...messages.filter((message: any) => ['user', 'assistant'].includes(message.role) && typeof message.content === 'string').map((message: any) => ({ role: message.role, content: message.content })),
+    ];
 
-    const systemPrompt = mode === 'skill'
-      ? `你是企业管理诊断AI助手。先检索企业资料→叠加管理框架→输出诊断、根因、优先级、行动计划。${ragContext || '\n⚠️ 未检索到企业数据，请指出资料缺口。'}`
-      : `你是企库库AI助手。严格基于企业知识库回答。不知道就说不知道。涉及报价/合同/法律请以正式文件为准。${ragContext || '\n⚠️ 当前企业知识库无足够依据，建议补充相关资料。'}`;
-
-    const allMsgs = [{ role: 'system' as const, content: systemPrompt }, ...messages];
-
-    // Streaming path
     const acceptStream = request.headers.get('accept')?.includes('text/event-stream');
     if (acceptStream) {
       const encoder = new TextEncoder();
       const stream = new ReadableStream({
         async start(controller) {
+          let answer = '';
           try {
-            const gen = chatCompletionStream({ messages: allMsgs });
-            for await (const chunk of gen) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: chunk })}\n\n`));
-            if (sources.length > 0) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ sources: sources.map(s => ({ filename: s.source, excerpt: s.content.slice(0, 200), score: s.score })) })}\n\n`));
+            controller.enqueue(encoder.encode(sse({ sessionId: session.id })));
+            for await (const chunk of llmChatCompletionStream({ messages: allMessages, temperature: 0.3 })) {
+              answer += chunk;
+              controller.enqueue(encoder.encode(sse({ content: chunk })));
+            }
+            await appendChatMessage(session, 'assistant', answer, { sources: sourceOutput, metadata: { modelStatus: 'live' } });
+            await logAiCall({ companyId: owner.companyId, userId: owner.id, mode: 'knowledge', model: getLlmConfig().model, modelStatus: 'live', questionPreview: query, latencyMs: Date.now() - start, success: true, sourcesCount: sources.length });
+            if (sourceOutput.length) controller.enqueue(encoder.encode(sse({ sources: sourceOutput })));
             controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-            controller.close();
-          } catch (e: any) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: e.message })}\n\n`));
+          } catch (error: any) {
+            const message = error.message || '模型接口调用失败';
+            await logAiCall({ companyId: owner.companyId, userId: owner.id, mode: 'knowledge', model: getLlmConfig().model, modelStatus: 'error', questionPreview: query, latencyMs: Date.now() - start, success: false, errorMessage: message, sourcesCount: sources.length });
+            controller.enqueue(encoder.encode(sse({ error: message, sessionId: session.id })));
+          } finally {
             controller.close();
           }
         },
       });
-      return new NextResponse(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' } });
+      return new NextResponse(stream, { headers: { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive' } });
     }
 
-    const result = await llmChatCompletion({ messages: allMsgs, temperature: 0.3 });
-    const srcOut = sources.map(s => ({ filename: s.source, excerpt: s.content.slice(0, 200), score: s.score }));
-
-    if (user) {
-      await logAiCall({
-        companyId, userId: user.id, mode: mode === 'skill' ? 'skill' : 'knowledge',
-        model: result.model, modelStatus: result.modelStatus,
-        questionPreview: query, promptTokens: result.usage?.promptTokens,
-        completionTokens: result.usage?.completionTokens, totalTokens: result.usage?.totalTokens,
-        latencyMs: result.latencyMs, success: result.modelStatus !== 'error',
-        errorMessage: result.error, sourcesCount: sources.length,
-      });
-    }
-
-    return NextResponse.json({
-      answer: result.answer || result.error || '未生成回答',
-      sources: srcOut, retrievedChunksCount: sources.length,
-      model: result.model, modelStatus: result.modelStatus,
-      mode: mode === 'skill' ? 'skill' : 'knowledge',
-      latencyMs: Date.now() - start,
-      usage: result.usage,
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    const result = await llmChatCompletion({ messages: allMessages, temperature: 0.3 });
+    if (result.answer) await appendChatMessage(session, 'assistant', result.answer, { sources: sourceOutput, metadata: { modelStatus: result.modelStatus } });
+    await logAiCall({ companyId: owner.companyId, userId: owner.id, mode: 'knowledge', model: result.model, modelStatus: result.modelStatus, questionPreview: query, promptTokens: result.usage?.promptTokens, completionTokens: result.usage?.completionTokens, totalTokens: result.usage?.totalTokens, latencyMs: result.latencyMs, success: result.modelStatus === 'live', errorMessage: result.error, sourcesCount: sources.length });
+    return NextResponse.json({ answer: result.answer, error: result.error, sources: sourceOutput, sessionId: session.id, modelStatus: result.modelStatus, latencyMs: Date.now() - start });
+  } catch (error: any) {
+    console.error('[CHAT]', error.message);
+    return NextResponse.json({ error: error.message || '企业知识库问答失败' }, { status: 500 });
   }
 }
