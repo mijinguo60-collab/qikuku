@@ -6,7 +6,7 @@
 type NormRole = 'owner' | 'admin' | 'manager' | 'staff' | 'sales' | 'content' | 'readonly' | 'disabled';
 
 const ROLE_MAP: Record<string, NormRole> = {
-  super_admin: 'owner', owner: 'owner', admin: 'admin',
+  super_admin: 'owner', platform_super_admin: 'owner', owner: 'owner', admin: 'admin',
   manager: 'manager', member: 'staff', employee: 'staff',
   staff: 'staff', sales: 'sales', content: 'content',
   readonly: 'readonly', disabled: 'disabled', inactive: 'disabled', banned: 'disabled',

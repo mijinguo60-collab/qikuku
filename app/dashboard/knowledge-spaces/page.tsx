@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { cookies } from 'next/headers';
+import { getServerSession } from '@/lib/session';
 import { FolderOpen, FileText, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import CreateKnowledgeSpaceButton from '@/components/dashboard/CreateKnowledgeSpaceButton';
@@ -10,9 +10,8 @@ interface SpaceRow {
 }
 
 export default async function KnowledgeSpacesPage() {
-  const cookie = cookies().get('qikuku_user');
-  if (!cookie) return null;
-  const user = JSON.parse(cookie.value);
+  const user = await getServerSession();
+  if (!user) return null;
   const db = getDb();
 
   const spaces = await db.prepare(

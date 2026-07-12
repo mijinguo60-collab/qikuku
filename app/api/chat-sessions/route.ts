@@ -1,19 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createChatSession, isChatMode, listOwnedChatSessions, SessionOwner } from '@/lib/chat-sessions';
-
-function currentOwner(request: NextRequest): SessionOwner | null {
-  const cookie = request.cookies.get('qikuku_user');
-  if (!cookie) return null;
-  try {
-    const user = JSON.parse(cookie.value);
-    return user?.id && user?.companyId ? { id: user.id, companyId: user.companyId } : null;
-  } catch {
-    return null;
-  }
-}
+import { getRequestSession } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
-  const owner = currentOwner(request);
+  const owner = await getRequestSession(request);
   if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
   const mode = request.nextUrl.searchParams.get('mode') || 'knowledge';
   if (!isChatMode(mode)) return NextResponse.json({ error: '无效的对话类型' }, { status: 400 });
@@ -26,7 +16,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const owner = currentOwner(request);
+  const owner = await getRequestSession(request);
   if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
   try {
     const body = await request.json().catch(() => ({}));

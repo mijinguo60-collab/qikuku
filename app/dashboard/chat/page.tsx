@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Bot, Copy, Loader2, Send, Zap, ZapOff } from 'lucide-react';
 import ConversationHistory, { ConversationSummary } from '@/components/dashboard/ConversationHistory';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 interface Message {
   id: string;
@@ -26,6 +27,8 @@ export default function ChatPage() {
   const [useRealApi, setUseRealApi] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [historyRevision, setHistoryRevision] = useState(0);
+  const [creditNotice, setCreditNotice] = useState('');
+  const { updateCredits } = useCreditBalance();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -114,6 +117,7 @@ export default function ChatPage() {
               setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: fullContent } : message));
             }
             if (event.sources) setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, sources: event.sources } : message));
+            if (typeof event.chargedCredits === 'number' && typeof event.remainingCredits === 'number' && event.chargedCredits > 0) { updateCredits(event.remainingCredits); setCreditNotice(`本次消耗${event.chargedCredits}积分，剩余${event.remainingCredits.toLocaleString()}积分`); }
             if (event.error) backendError = event.error;
           } catch {
             backendError = '模型返回格式无法解析';
@@ -169,6 +173,7 @@ export default function ChatPage() {
             <button onClick={() => void handleSend()} disabled={loading || !input.trim()} className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40"><Send className="w-4 h-4 text-white" /></button>
           </div>
           <p className="text-[10px] text-text-muted text-center mt-2">回答基于企业知识库。涉及报价、合同等内容请以正式文件为准。</p>
+          {creditNotice && <p className="text-[11px] text-text-secondary text-center mt-1">{creditNotice}</p>}
         </div>
       </div>
     </div>

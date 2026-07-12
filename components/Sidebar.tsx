@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key, Wallet } from 'lucide-react';
 import { isSidebarGroupVisible } from '@/lib/roles';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const menuGroups = [
   {
@@ -47,33 +48,9 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const router = useRouter();
 
-  // Use role from server layout prop; fallback to empty (readonly) if not provided
-  const [clientRole, setClientRole] = useState('');
-  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const { totalBalance: creditBalance, loading: creditsLoading } = useCreditBalance();
   const userRole = propRole || '';
-
-  // Client-only fallback: if the server prop is empty, try reading from document.cookie
-  // This handles edge cases where the layout renders before cookies are available
-  useEffect(() => {
-    if (!userRole) {
-      const match = document.cookie.match(/(?:^|;\s*)qikuku_user=([^;]*)/);
-      if (match) {
-        try {
-          setClientRole(JSON.parse(decodeURIComponent(match[1])).role || '');
-        } catch {}
-      }
-    }
-  }, [userRole]);
-
-  useEffect(() => {
-    fetch('/api/billing/credits').then(async (response) => {
-      if (!response.ok) return;
-      const data = await response.json();
-      setCreditBalance(Number(data?.credits?.totalBalance || 0));
-    }).catch(() => {});
-  }, []);
-
-  const effectiveRole = userRole || clientRole;
+  const effectiveRole = userRole;
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -120,9 +97,9 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
 
       {/* Bottom */}
       <div className="border-t border-border-light p-2 space-y-1">
-        {!collapsed && creditBalance !== null && <Link href="/dashboard/billing" className={`block px-3 py-2 rounded-xl text-xs transition-colors ${creditBalance < 1000 ? 'bg-warning/10 text-warning' : 'text-text-secondary hover:bg-surface-hover'}`}>
-          <span className="block text-[10px] text-text-muted">AI 算力积分</span><span className="font-semibold">{creditBalance.toLocaleString()}</span>{creditBalance < 1000 && <span className="ml-1 text-[10px]">余额较低</span>}
-        </Link>}
+        <Link href="/dashboard/billing" className={`block rounded-xl border px-3 py-3 transition-colors ${creditBalance < 1000 && !creditsLoading ? 'border-warning/30 bg-warning/10 text-warning' : 'border-border-light bg-white text-text-primary hover:bg-surface-hover'}`} title={collapsed ? `AI 算力积分 ${creditsLoading ? '…' : creditBalance.toLocaleString()}` : undefined}>
+          {collapsed ? <Wallet className="w-5 h-5 mx-auto" /> : <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-accent-blue/10 flex items-center justify-center"><Wallet className="w-4 h-4 text-accent-blue" /></div><div className="min-w-0"><p className="text-[10px] text-text-muted">AI 算力积分</p><p className="text-lg leading-5 font-bold">{creditsLoading ? '—' : creditBalance.toLocaleString()}</p><p className="text-[10px] text-text-muted">点击查看套餐与充值</p></div></div>}
+        </Link>
         <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all w-full">
           <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           {!collapsed && <span className="whitespace-nowrap">收起菜单</span>}

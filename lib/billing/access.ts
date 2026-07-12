@@ -1,17 +1,9 @@
 import { NextRequest } from 'next/server';
+import { getRequestSession, ServerSession } from '@/lib/session';
 
-export type BillingOwner = { id: string; companyId: string; role: string; email?: string; name?: string };
+export type BillingOwner = ServerSession;
 
-export function getBillingOwner(request: NextRequest): BillingOwner | null {
-  const value = request.cookies.get('qikuku_user')?.value;
-  if (!value) return null;
-  try {
-    const user = JSON.parse(value);
-    return user?.id && user?.companyId ? user : null;
-  } catch {
-    return null;
-  }
-}
+export async function getBillingOwner(request: NextRequest): Promise<BillingOwner | null> { return getRequestSession(request); }
 
 // 企业内的 super_admin 是企业所有者，不等于平台运营人员。
 export function isPlatformSuperAdmin(user: BillingOwner | null) {

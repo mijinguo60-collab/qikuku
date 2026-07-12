@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Send, Copy, Loader2, Headphones, MessageSquare, AlertCircle, FileText } from 'lucide-react';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const FAQ_ITEMS = [
   { q: '我们的代运营服务包含哪些内容？', cat: '服务内容' },
@@ -17,6 +18,7 @@ export default function SupportPage() {
   const [input, setInput] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
+  const { updateCredits } = useCreditBalance();
 
   async function handleAsk(question?: string) {
     const q = question || input.trim();
@@ -36,6 +38,7 @@ export default function SupportPage() {
       });
       const data = await res.json();
       setResult(data.answer || data.error || '未返回内容');
+      if (data.chargedCredits > 0 && typeof data.remainingCredits === 'number') updateCredits(data.remainingCredits);
     } catch (e: any) { setResult('请求失败: ' + e.message); }
     setLoading(false);
   }

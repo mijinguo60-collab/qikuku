@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ChangeEvent, FormEvent, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileUp, Loader2, Upload, X } from 'lucide-react';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 interface KnowledgeSpaceOption {
   id: string;
@@ -20,6 +21,8 @@ export default function FileUploadButton({ spaces }: { spaces: KnowledgeSpaceOpt
   const [knowledgeSpaceId, setKnowledgeSpaceId] = useState(spaces[0]?.id || '');
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [creditNotice, setCreditNotice] = useState('');
+  const { updateCredits } = useCreditBalance();
 
   function openDialog() {
     setError('');
@@ -67,6 +70,7 @@ export default function FileUploadButton({ spaces }: { spaces: KnowledgeSpaceOpt
         return;
       }
       setFile(null);
+      if (data.chargedCredits > 0 && typeof data.remainingCredits === 'number') { updateCredits(data.remainingCredits); setCreditNotice(`本次消耗${data.chargedCredits}积分，剩余${data.remainingCredits.toLocaleString()}积分`); }
       if (fileInputRef.current) fileInputRef.current.value = '';
       setOpen(false);
       router.refresh();
@@ -128,6 +132,7 @@ export default function FileUploadButton({ spaces }: { spaces: KnowledgeSpaceOpt
                     </button>
                   </div>
                   {error && <p className="text-sm text-danger">{error}</p>}
+                  {creditNotice && <p className="text-xs text-text-secondary">{creditNotice}</p>}
                 </div>
                 <div className="flex justify-end gap-2 mt-6">
                   <button type="button" onClick={closeDialog} className="btn-secondary text-sm">取消</button>

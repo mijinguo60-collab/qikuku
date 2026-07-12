@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getServerSession } from '@/lib/session';
 import Link from 'next/link';
 import { Download, Image as ImageIcon } from 'lucide-react';
 import { getDb } from '@/lib/db';
@@ -16,10 +16,8 @@ function formatDate(value: string | Date) {
 }
 
 export default async function AssetsPage() {
-  const userCookie = cookies().get('qikuku_user');
-  if (!userCookie) return null;
-  let user: { companyId: string };
-  try { user = JSON.parse(userCookie.value); } catch { return null; }
+  const user = await getServerSession();
+  if (!user) return null;
 
   const assets = await getDb().prepare(
     `SELECT id, prompt, "imageUrl", "aspectRatio", "createdAt"

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { Send, Copy, Download, Loader2, PenTool, Sparkles } from 'lucide-react';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const CONTENT_TYPES = [
   { id: 'sales-talk', label: '销售话术', icon: '💬', placeholder: '输入产品名称或客户场景，例：客户问抖音代运营效果如何保证？' },
@@ -19,6 +20,8 @@ export default function ContentPage() {
   const [input, setInput] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
+  const [creditNotice, setCreditNotice] = useState('');
+  const { updateCredits } = useCreditBalance();
 
   async function handleGenerate() {
     if (!input.trim() || loading) return;
@@ -42,6 +45,7 @@ export default function ContentPage() {
       });
       const data = await res.json();
       setResult(data.answer || data.error || '未返回内容');
+      if (data.chargedCredits > 0 && typeof data.remainingCredits === 'number') { updateCredits(data.remainingCredits); setCreditNotice(`本次消耗${data.chargedCredits}积分，剩余${data.remainingCredits.toLocaleString()}积分`); }
     } catch (e: any) {
       setResult('请求失败: ' + e.message);
     }
@@ -119,6 +123,7 @@ export default function ContentPage() {
               </div>
             </div>
           )}
+          {creditNotice && <p className="text-xs text-text-secondary">{creditNotice}</p>}
         </div>
       </div>
     </div>

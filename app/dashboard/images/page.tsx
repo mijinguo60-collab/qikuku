@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { Copy, Download, Image as ImageIcon, Loader2, RefreshCw, Send, Upload, X, Zap, ZapOff } from 'lucide-react';
 import ConversationHistory, { ConversationSummary } from '@/components/dashboard/ConversationHistory';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const ASPECT_RATIOS = [
   { label: '1:1 正方形', value: '1:1' },
@@ -41,6 +42,8 @@ export default function ImagesPage() {
   const [useRealApi, setUseRealApi] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [historyRevision, setHistoryRevision] = useState(0);
+  const [creditNotice, setCreditNotice] = useState('');
+  const { updateCredits } = useCreditBalance();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -135,6 +138,7 @@ export default function ImagesPage() {
       } else {
         setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, imageUrls: (data.images || []).map((image: { url: string }) => image.url), assetsSaved: data.assetsSaved, warning: (data.warnings || []).join(' '), aspectRatio: data.aspectRatio } : message));
         if (data.referenceImageUrl) setReferenceImage(data.referenceImageUrl);
+        if (typeof data.chargedCredits === 'number' && typeof data.remainingCredits === 'number' && data.chargedCredits > 0) { updateCredits(data.remainingCredits); setCreditNotice(`本次消耗${data.chargedCredits}积分，剩余${data.remainingCredits.toLocaleString()}积分`); }
       }
       setHistoryRevision((value) => value + 1);
     } catch (error: any) {
@@ -190,6 +194,7 @@ export default function ImagesPage() {
             </div>
             <div className="flex items-center gap-2 bg-surface-secondary rounded-3xl px-4 py-2 border border-border-light focus-within:border-border-medium"><input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void handleGenerate()} placeholder={referenceImage ? '描述你想如何参考或改造这张图片...' : '描述你想要生成的图片...'} className="flex-1 bg-transparent text-sm outline-none text-text-primary placeholder:text-text-muted py-1" /><button onClick={() => void handleGenerate()} disabled={loading || !input.trim()} className="w-9 h-9 rounded-full bg-text-primary flex items-center justify-center flex-shrink-0 disabled:opacity-40"><Send className="w-4 h-4 text-white" /></button></div>
             <p className="text-[10px] text-text-muted mt-2 px-1">支持上传 PNG、JPG、JPEG、WebP 参考图（最大 10MB）</p>
+            {creditNotice && <p className="text-[11px] text-text-secondary mt-1 px-1">{creditNotice}</p>}
           </div>
         </div>
       </div>

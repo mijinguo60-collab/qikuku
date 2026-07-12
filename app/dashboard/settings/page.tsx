@@ -1,12 +1,11 @@
-import { cookies } from 'next/headers';
+import { getServerSession } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { Settings, Building2, Shield, Database, ArrowRight, Image as ImageIcon, Save } from 'lucide-react';
 import Link from 'next/link';
 
-export default function SettingsPage() {
-  const cookie = cookies().get('qikuku_user');
-  if (!cookie) return null;
-  const user = JSON.parse(cookie.value);
+export default async function SettingsPage() {
+  const user = await getServerSession();
+  if (!user) return null;
   const db = getDb();
 
   const company: any = db.prepare('SELECT * FROM "Company" WHERE id = ?').get(user.companyId) || {};

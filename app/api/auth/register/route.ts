@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createUser } from '@/lib/auth';
+import { createServerSession, setSessionCookie } from '@/lib/session';
 
 export async function POST(request: Request) {
   try {
@@ -14,10 +15,9 @@ export async function POST(request: Request) {
     if (!user) {
       return NextResponse.json({ error: '邮箱已被注册' }, { status: 409 });
     }
+    const { token } = await createServerSession(user);
     const response = NextResponse.json({ success: true, user });
-    response.cookies.set('qikuku_user', JSON.stringify(user), {
-      httpOnly: true, secure: false, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60, path: '/',
-    });
+    setSessionCookie(response, token);
     return response;
   } catch {
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });

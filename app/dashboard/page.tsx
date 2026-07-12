@@ -1,13 +1,12 @@
-import { cookies } from 'next/headers';
 import { getDashboardSummary, getTodayIndustryTopics } from '@/lib/dashboard-data';
 import { Brain, FileText, FolderOpen, MessageSquare, Image, TrendingUp, Lightbulb, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
+import { getServerSession } from '@/lib/session';
+import DashboardCreditCard from '@/components/billing/DashboardCreditCard';
 
 export default async function DashboardPage() {
-  const store = cookies();
-  const userCookie = store.get('qikuku_user');
-  if (!userCookie) return null;
-  const user = JSON.parse(userCookie.value);
+  const user = await getServerSession();
+  if (!user) return null;
   const summary = await getDashboardSummary(user.companyId);
   const todayTopics = getTodayIndustryTopics(summary.companyIndustry);
 
@@ -20,7 +19,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid lg:grid-cols-[1fr_360px] gap-4 mb-8"><div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { icon: FileText, label: '文件总数', value: summary.docCount, color: 'text-accent-blue' },
           { icon: FolderOpen, label: '知识空间', value: summary.spaceCount, color: 'text-accent-purple' },
@@ -32,7 +31,7 @@ export default async function DashboardPage() {
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
-      </div>
+      </div><DashboardCreditCard /></div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card p-6">

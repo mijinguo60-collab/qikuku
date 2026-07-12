@@ -22,6 +22,8 @@ model User {
   creditLedgers CreditLedger[]
   rechargeOrders RechargeOrder[]
   usageRecords UsageRecord[]
+  sessions     UserSession[]
+  paymentOrders PaymentOrder[]
 }
 
 model Company {
@@ -49,6 +51,7 @@ model Company {
   creditLedgers  CreditLedger[]
   rechargeOrders RechargeOrder[]
   usageRecords   UsageRecord[]
+  paymentOrders  PaymentOrder[]
 }
 
 model KnowledgeSpace {
@@ -367,4 +370,50 @@ model UsageRecord {
   @@index([companyId, createdAt])
   @@index([companyId, featureType])
   @@index([requestId])
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model PaymentOrder {
+  id                    String   @id @default(uuid())
+  orderNo               String   @unique
+  companyId             String
+  userId                String?
+  orderType             String
+  provider              String
+  status                String   @default("pending")
+  amountCents           Int
+  currency              String   @default("CNY")
+  subject               String
+  description           String?
+  planCode              String?
+  billingCycle          String?
+  rechargeOptionId      String?
+  baseCredits           Int      @default(0)
+  bonusCredits          Int      @default(0)
+  firstRechargeBonus    Int      @default(0)
+  providerOrderNo       String?
+  providerTransactionId String?  @unique
+  qrCodeUrl             String?
+  paymentPayloadJson    String?
+  paidAt                DateTime?
+  expiresAt             DateTime?
+  closedAt              DateTime?
+  refundedAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  company               Company  @relation(fields: [companyId], references: [id])
+  user                  User?    @relation(fields: [userId], references: [id])
+  @@index([companyId, status])
+  @@index([createdAt])
+  @@index([expiresAt])
 }

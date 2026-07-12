@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef } from 'react';
 import { Send, Copy, Loader2, TrendingUp, MessageSquare, Zap } from 'lucide-react';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const QUICK_QUESTIONS = [
   { q: '客户嫌贵怎么回复？', category: '异议处理' },
@@ -17,6 +18,7 @@ export default function SalesPage() {
   const [input, setInput] = useState('');
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
+  const { updateCredits } = useCreditBalance();
 
   async function handleAsk(question?: string) {
     const q = question || input.trim();
@@ -38,6 +40,7 @@ export default function SalesPage() {
       });
       const data = await res.json();
       setResult(data.answer || data.error || '未返回内容');
+      if (data.chargedCredits > 0 && typeof data.remainingCredits === 'number') updateCredits(data.remainingCredits);
     } catch (e: any) {
       setResult('请求失败: ' + e.message);
     }

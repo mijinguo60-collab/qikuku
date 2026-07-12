@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import { cookies } from 'next/headers';
+import { getServerSession } from '@/lib/session';
 import { FileText, Search, Filter, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import FileUploadButton from '@/components/dashboard/FileUploadButton';
@@ -25,9 +25,8 @@ const typeIcons: Record<string, string> = {
 };
 
 export default async function FilesPage() {
-  const cookie = cookies().get('qikuku_user');
-  if (!cookie) return null;
-  const user = JSON.parse(cookie.value);
+  const user = await getServerSession();
+  if (!user) return null;
   const db = getDb();
 
   const files = await db.prepare(

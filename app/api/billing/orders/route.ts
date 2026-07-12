@@ -9,14 +9,14 @@ function orderNo() {
 }
 
 export async function GET(request: NextRequest) {
-  const owner = getBillingOwner(request);
+  const owner = await getBillingOwner(request);
   if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
   const orders = await getDb().prepare(`SELECT id, "orderNo", "amountCents", "baseCredits", "bonusCredits", "firstRechargeBonus", provider, status, "paidAt", "createdAt" FROM "RechargeOrder" WHERE "companyId" = ? ORDER BY "createdAt" DESC LIMIT 50`).all(owner.companyId);
   return NextResponse.json({ orders });
 }
 
 export async function POST(request: NextRequest) {
-  const owner = getBillingOwner(request);
+  const owner = await getBillingOwner(request);
   if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
   try {
     const body = await request.json();

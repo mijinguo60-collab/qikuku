@@ -1,2 +1,4 @@
 import { NextResponse } from 'next/server';
-export async function POST() { return NextResponse.json({ error: '支付通道尚未开通' }, { status: 503 }); }
+import { isWechatPayConfigured, parseWechatWebhook } from '@/lib/payments/wechat';
+import { completePaidPayment } from '@/lib/payments/payment-service';
+export async function POST(request:Request) { if(!isWechatPayConfigured()) return NextResponse.json({code:'FAIL',message:'支付通道尚未开通'},{status:503}); try { const data=await parseWechatWebhook(request); if(data.mchid!==process.env.WECHAT_PAY_MCH_ID||data.appid!==process.env.WECHAT_PAY_APP_ID) throw new Error('微信商户校验失败'); if(data.trade_state!=='SUCCESS') return NextResponse.json({code:'SUCCESS',message:'ignored'}); await completePaidPayment(data.out_trade_no,'wechat',data.transaction_id,data.amount?.total); return NextResponse.json({code:'SUCCESS',message:'成功'}); } catch(error:any){ console.error('[WECHAT_NOTIFY]',{message:error.message}); return NextResponse.json({code:'FAIL',message:'处理失败'},{status:500}); } }

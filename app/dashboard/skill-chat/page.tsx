@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Brain, Copy, Loader2, Send, Sparkles, Zap, ZapOff } from 'lucide-react';
 import ConversationHistory, { ConversationSummary } from '@/components/dashboard/ConversationHistory';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 interface Message {
   id: string;
@@ -33,6 +34,8 @@ export default function SkillChatPage() {
   const [useRealApi, setUseRealApi] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [historyRevision, setHistoryRevision] = useState(0);
+  const [creditNotice, setCreditNotice] = useState('');
+  const { updateCredits } = useCreditBalance();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -125,6 +128,7 @@ export default function SkillChatPage() {
               fullContent += event.content;
               setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: fullContent } : message));
             }
+            if (typeof event.chargedCredits === 'number' && typeof event.remainingCredits === 'number' && event.chargedCredits > 0) { updateCredits(event.remainingCredits); setCreditNotice(`本次消耗${event.chargedCredits}积分，剩余${event.remainingCredits.toLocaleString()}积分`); }
             if (event.error) backendError = event.error;
           } catch {
             backendError = '模型返回格式无法解析';
@@ -170,6 +174,7 @@ export default function SkillChatPage() {
         <div className="px-6 py-4 border-t border-border-light">
           <div className="max-w-3xl mx-auto flex items-center gap-2 mb-3"><span className="text-[11px] text-text-muted">管理 Skill：</span><select value={selectedSkillId} onChange={(event) => setSelectedSkillId(event.target.value)} className="text-[11px] bg-surface-secondary border border-border-light rounded-lg px-2.5 py-1.5 text-text-primary outline-none"><option value="">自动推荐</option>{skills.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}</select></div>
           <div className="max-w-3xl mx-auto flex items-center gap-2 bg-surface-secondary rounded-3xl px-4 py-2 border border-border-light focus-within:border-border-medium"><input type="text" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void handleSend()} placeholder="描述你的管理问题..." className="flex-1 bg-transparent text-sm outline-none text-text-primary py-1" /><button onClick={() => void handleSend()} disabled={loading || !input.trim()} className="w-9 h-9 rounded-full bg-accent-purple flex items-center justify-center disabled:opacity-40"><Send className="w-4 h-4 text-white" /></button></div>
+          {creditNotice && <p className="text-[11px] text-text-secondary text-center mt-2">{creditNotice}</p>}
         </div>
       </div>
     </div>

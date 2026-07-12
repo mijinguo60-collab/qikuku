@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { GraduationCap, BookOpen, CheckCircle, Clock, ChevronRight, Sparkles, Loader2 } from 'lucide-react';
+import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const ROLES = [
   { id: 'sales', label: '销售', icon: '💼' },
@@ -18,6 +19,7 @@ export default function TrainingPage() {
   const [selectedRole, setSelectedRole] = useState('sales');
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(false);
+  const { updateCredits } = useCreditBalance();
 
   async function handleGenerate() {
     setLoading(true);
@@ -36,6 +38,7 @@ export default function TrainingPage() {
         }),
       });
       const data = await res.json();
+      if (data.chargedCredits > 0 && typeof data.remainingCredits === 'number') updateCredits(data.remainingCredits);
       const text = data.answer || data.error || '';
       // Parse modules
       const parsed: string[] = text.split(/模块[一二三四五六七八九十]+[：:]/g).filter(Boolean);

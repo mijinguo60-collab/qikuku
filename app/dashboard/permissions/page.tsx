@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getServerSession } from '@/lib/session';
 import { getDb } from '@/lib/db';
 import { Shield, Check, X, MoreHorizontal, Plus, UserPlus } from 'lucide-react';
 
@@ -41,9 +41,8 @@ function getRoleLabel(roleId: string) { return ROLES.find(r => r.id === roleId)?
 function getRoleDescription(roleId: string) { return ROLES.find(r => r.id === roleId)?.description || ''; }
 
 export default async function PermissionsPage() {
-  const cookie = cookies().get('qikuku_user');
-  if (!cookie) return null;
-  const currentUser = JSON.parse(cookie.value);
+  const currentUser = await getServerSession();
+  if (!currentUser) return null;
   const db = getDb();
 
   const users = await db.prepare(

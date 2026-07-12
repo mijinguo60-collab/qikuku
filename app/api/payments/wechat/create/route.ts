@@ -1,0 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getRequestSession } from '@/lib/session';
+import { createPaymentOrder } from '@/lib/payments/order-service';
+import { createWechatNativePayment, isWechatPayConfigured } from '@/lib/payments/wechat';
+import { getDb } from '@/lib/db';
+export async function POST(request: NextRequest) { const user=await getRequestSession(request); if(!user) return NextResponse.json({error:'未登录'},{status:401}); if(!isWechatPayConfigured()) return NextResponse.json({error:'微信支付通道暂未开通'},{status:503}); try { const body=await request.json(); const order=await createPaymentOrder({companyId:user.companyId,userId:user.id,provider:'wechat',orderType:body.orderType,rechargeAmountCents:body.rechargeAmountCents,planCode:body.planCode,billingCycle:body.billingCycle}); const payment=await createWechatNativePayment(order); await getDb().prepare(`UPDATE "PaymentOrder" SET status='paying',"qrCodeUrl"=?,"providerOrderNo"=?,"updatedAt"=? WHERE id=?`).run(payment.qrCodeUrl,payment.providerOrderNo,new Date().toISOString(),order.id); return NextResponse.json({orderNo:order.orderNo,qrCodeUrl:payment.qrCodeUrl,expiresAt:order.expiresAt}); } catch(error:any){ return NextResponse.json({error:error.message||'创建微信订单失败'},{status:400}); } }

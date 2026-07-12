@@ -5,7 +5,7 @@ import { createRechargeCredits, grantCredits, reverseUnusedRechargeCredits, cons
 import { logAction } from '@/lib/audit';
 
 async function guard(request: NextRequest) {
-  const user = getBillingOwner(request);
+  const user = await getBillingOwner(request);
   return isPlatformSuperAdmin(user) ? user : null;
 }
 

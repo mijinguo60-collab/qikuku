@@ -1,0 +1,6 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getRequestSession } from '@/lib/session';
+import { createPaymentOrder } from '@/lib/payments/order-service';
+import { createAlipayPagePayment, isAlipayConfigured } from '@/lib/payments/alipay';
+import { getDb } from '@/lib/db';
+export async function POST(request: NextRequest) { const user=await getRequestSession(request); if(!user) return NextResponse.json({error:'未登录'},{status:401}); if(!isAlipayConfigured()) return NextResponse.json({error:'支付宝支付通道暂未开通'},{status:503}); try { const body=await request.json(); const order=await createPaymentOrder({companyId:user.companyId,userId:user.id,provider:'alipay',orderType:body.orderType,rechargeAmountCents:body.rechargeAmountCents,planCode:body.planCode,billingCycle:body.billingCycle}); const paymentUrl=createAlipayPagePayment(order); await getDb().prepare(`UPDATE "PaymentOrder" SET status='paying',"paymentPayloadJson"=?,"updatedAt"=? WHERE id=?`).run(JSON.stringify({paymentUrl}),new Date().toISOString(),order.id); return NextResponse.json({orderNo:order.orderNo,paymentUrl,expiresAt:order.expiresAt}); } catch(error:any){ return NextResponse.json({error:error.message||'创建支付宝订单失败'},{status:400}); } }

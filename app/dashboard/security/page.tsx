@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { getServerSession } from '@/lib/session';
 import { getAuditLogs } from '@/lib/audit';
 import { Lock, Shield, Eye, Download, Trash2, Clock, User as UserIcon, FileText, Server } from 'lucide-react';
 
@@ -29,9 +29,8 @@ function actionLabel(action: string): string {
 }
 
 export default async function SecurityPage() {
-  const cookie = cookies().get('qikuku_user');
-  if (!cookie) return null;
-  const user = JSON.parse(cookie.value);
+  const user = await getServerSession();
+  if (!user) return null;
 
   const logs = await getAuditLogs(user.companyId, 30) as any[];
 

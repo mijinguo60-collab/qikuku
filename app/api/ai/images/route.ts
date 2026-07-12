@@ -8,6 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
 import { ensureCompanySubscription } from '@/lib/billing/plans';
 import { FEATURE_CREDITS } from '@/lib/billing/pricing';
+import { getRequestSession } from '@/lib/session';
 
 const MAX_COUNT = 4;
 const MAX_REFERENCE_BYTES = 10 * 1024 * 1024;
@@ -18,17 +19,6 @@ const RATIOS: Record<string, string> = {
   '4:3': '1024x768',
   '3:4': '768x1024',
 };
-
-function currentOwner(request: NextRequest): SessionOwner | null {
-  const cookie = request.cookies.get('qikuku_user');
-  if (!cookie) return null;
-  try {
-    const user = JSON.parse(cookie.value);
-    return user?.id && user?.companyId ? { id: user.id, companyId: user.companyId } : null;
-  } catch {
-    return null;
-  }
-}
 
 function validReferenceImage(value: unknown) {
   if (typeof value !== 'string' || !value) return false;
@@ -64,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '参考图仅支持 PNG、JPG、JPEG、WebP，且大小不能超过 10MB' }, { status: 400 });
     }
 
-    owner = currentOwner(request);
+    owner = await getRequestSession(request);
     if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
     const imageConfig = getImageConfig();
     if (!imageConfig.isReady) return NextResponse.json({ error: imageConfig.error }, { status: 503 });

@@ -1,30 +1,23 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { canAccessRoute, isAdminRole } from '@/lib/roles';
+import { verifySessionRouteAccess } from '@/lib/session-edge';
 
-function getUserFromCookie(request: NextRequest): any | null {
-  const cookie = request.cookies.get('qikuku_user');
-  if (!cookie) return null;
-  try { return JSON.parse(cookie.value); } catch { return null; }
-}
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const user = getUserFromCookie(request);
+  const token = request.cookies.get('qikuku_user')?.value;
+  const canAccess = await verifySessionRouteAccess(token, pathname);
 
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/ai')) {
-    if (!user) {
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/ai') || pathname.startsWith('/api/billing') || pathname.startsWith('/api/admin')) {
+    if (!canAccess) {
       const u = new URL('/auth/login', request.url);
       u.searchParams.set('redirect', pathname);
-      return NextResponse.redirect(u);
-    }
-    // 统一权限判断
-    if (!canAccessRoute(user.role, pathname)) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      const response = NextResponse.redirect(u);
+      response.cookies.set('qikuku_user', '', { path: '/', maxAge: 0 });
+      return response;
     }
   }
 
-  if (pathname.startsWith('/auth') && user) {
+  if (pathname.startsWith('/auth') && canAccess) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
@@ -32,5 +25,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/auth/:path*', '/api/ai/:path*'],
+  matcher: ['/dashboard/:path*', '/auth/:path*', '/api/ai/:path*', '/api/billing/:path*', '/api/admin/:path*'],
 };

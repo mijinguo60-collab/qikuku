@@ -9,6 +9,7 @@ import { logAction } from '@/lib/audit';
 import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
 import { ensureCompanySubscription } from '@/lib/billing/plans';
 import { FEATURE_CREDITS } from '@/lib/billing/pricing';
+import { getRequestSession } from '@/lib/session';
 
 const ALLOWED_TYPES = ['pdf','doc','docx','xls','xlsx','txt','md','markdown','csv','json'];
 const MAX_SIZE = 20 * 1024 * 1024;
@@ -23,9 +24,8 @@ export async function POST(request: NextRequest) {
     const tags = (formData.get('tags') as string) || '';
     const sensitivityLevel = (formData.get('sensitivityLevel') as string) || 'normal';
 
-    const userCookie = request.cookies.get('qikuku_user');
-    if (!userCookie) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    const user = JSON.parse(userCookie.value);
+    const user = await getRequestSession(request);
+    if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 });
 
     await ensureCompanySubscription(user.companyId, user.id);
     const preflight = await checkCreditBalance(user.companyId, FEATURE_CREDITS.file_embedding);

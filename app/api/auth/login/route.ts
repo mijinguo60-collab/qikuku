@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser } from '@/lib/auth';
 import { writeAuditLog } from '@/lib/audit-log';
+import { createServerSession, setSessionCookie } from '@/lib/session';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,10 +32,9 @@ export async function POST(request: NextRequest) {
     // Log success
     await writeAuditLog({ companyId: user.companyId, userId: user.id, action: 'login_success', detail: email }).catch(() => {});
 
+    const { token } = await createServerSession(user);
     const response = NextResponse.json({ success: true, user });
-    response.cookies.set('qikuku_user', JSON.stringify(user), {
-      httpOnly: true, secure: false, sameSite: 'lax', maxAge: 30 * 24 * 60 * 60, path: '/',
-    });
+    setSessionCookie(response, token);
     return response;
   } catch (e: any) {
     console.error('[LOGIN]', e.message);
