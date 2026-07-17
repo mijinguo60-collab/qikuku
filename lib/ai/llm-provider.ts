@@ -11,7 +11,7 @@ export interface LlmResult {
   error?: string;
 }
 
-export type RuntimeLlmProvider = Extract<ModelProvider, 'deepseek' | 'openai'>;
+export type RuntimeLlmProvider = Extract<ModelProvider, 'deepseek' | 'openai' | 'google'>;
 
 export type LlmRequestOptions = ChatCompletionOptions & {
   /**
@@ -22,8 +22,8 @@ export type LlmRequestOptions = ChatCompletionOptions & {
 };
 
 const providerEnvironment: Record<RuntimeLlmProvider, {
-  key: 'DEEPSEEK_API_KEY' | 'OPENAI_API_KEY';
-  baseUrl: 'DEEPSEEK_BASE_URL' | 'OPENAI_BASE_URL';
+  key: 'DEEPSEEK_API_KEY' | 'OPENAI_API_KEY' | 'GEMINI_API_KEY';
+  baseUrl: 'DEEPSEEK_BASE_URL' | 'OPENAI_BASE_URL' | 'GEMINI_BASE_URL';
   label: string;
 }> = {
   deepseek: {
@@ -34,10 +34,16 @@ const providerEnvironment: Record<RuntimeLlmProvider, {
   openai: {
     key: 'OPENAI_API_KEY', baseUrl: 'OPENAI_BASE_URL', label: 'OpenAI',
   },
+  // Gemini requests use the same generic OpenAI-compatible adapter only after
+  // the configured channel proves that it supports the protocol. Model choice
+  // is always supplied by the server-owned catalogue, never GEMINI_MODEL.
+  google: {
+    key: 'GEMINI_API_KEY', baseUrl: 'GEMINI_BASE_URL', label: 'Gemini',
+  },
 };
 
 export function isRuntimeLlmProvider(provider: ModelProvider): provider is RuntimeLlmProvider {
-  return provider === 'deepseek' || provider === 'openai';
+  return provider === 'deepseek' || provider === 'openai' || provider === 'google';
 }
 
 export function getLlmConfig(provider: RuntimeLlmProvider = 'deepseek') {

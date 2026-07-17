@@ -43,12 +43,23 @@ function DeepSeekProviderMark({ className = '' }: { className?: string }) {
   </svg>;
 }
 
+function GeminiProviderMark({ className = '' }: { className?: string }) {
+  // Locally drawn four-point colour star. It avoids third-party hosted assets
+  // while clearly distinguishing Gemini in the model picker.
+  return <svg viewBox="0 0 24 24" aria-label="Gemini" role="img" className={className}>
+    <path d="M12 2.6c.72 4.85 3.06 8.08 7.86 9.4-4.8 1.32-7.14 4.55-7.86 9.4-.72-4.85-3.06-8.08-7.86-9.4 4.8-1.32 7.14-4.55 7.86-9.4Z" fill="#4285F4" />
+    <path d="M12 2.6c.72 4.85 3.06 8.08 7.86 9.4H12V2.6Z" fill="#8AB4F8" />
+    <path d="M12 12h7.86C15.06 13.32 12.72 16.55 12 21.4V12Z" fill="#C58AF9" />
+    <path d="M12 12v9.4c-.72-4.85-3.06-8.08-7.86-9.4H12Z" fill="#7BAAF7" />
+  </svg>;
+}
+
 function ProviderIcon({ provider, className = '' }: { provider: string; className?: string }) {
   const props = { className: `w-4 h-4 ${className}` };
   if (provider === 'deepseek') return <DeepSeekProviderMark className={props.className} />;
   if (provider === 'openai') return <OpenAiProviderMark className={props.className} />;
+  if (provider === 'google') return <GeminiProviderMark className={props.className} />;
   if (provider === 'anthropic') return <WandSparkles {...props} />;
-  if (provider === 'google') return <Sparkles {...props} />;
   if (provider === 'minimax' || provider === 'kimi' || provider === 'glm' || provider === 'alibaba') return <Zap {...props} />;
   return <Bot {...props} />;
 }

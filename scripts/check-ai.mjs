@@ -5,6 +5,8 @@ loadEnvConfig(process.cwd());
 
 const L = !!process.env.DEEPSEEK_API_KEY;
 const LU = !!process.env.DEEPSEEK_BASE_URL;
+const G = !!process.env.GEMINI_API_KEY;
+const GU = !!process.env.GEMINI_BASE_URL;
 const E = !!process.env.EMBEDDING_API_KEY;
 const B = !!process.env.BLOB_READ_WRITE_TOKEN;
 const isProd = process.env.NODE_ENV === 'production';
@@ -12,6 +14,9 @@ const isProd = process.env.NODE_ENV === 'production';
 console.log('DEEPSEEK_API_KEY exists:', L);
 console.log('DEEPSEEK_BASE_URL exists:', LU);
 console.log('DeepSeek model selection: server-owned catalog');
+console.log('GEMINI_API_KEY exists:', G);
+console.log('GEMINI_BASE_URL exists:', GU);
+console.log('Gemini model selection: server-owned catalog with verified model IDs');
 console.log('EMBEDDING_API_KEY exists:', E);
 console.log('BLOB_READ_WRITE_TOKEN exists:', B);
 console.log('llm ready:', L && LU);

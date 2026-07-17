@@ -20,6 +20,12 @@ export async function GET(request: NextRequest) {
       configured: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_BASE_URL),
     },
     {
+      id: 'gemini',
+      title: 'Gemini 模型通道',
+      description: '仅在真实模型 ID 与能力验证完成后向企业成员开放',
+      configured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_BASE_URL),
+    },
+    {
       id: 'image',
       title: '企业图像生成模型',
       description: '用于企业宣传图、海报和内容素材生成',
