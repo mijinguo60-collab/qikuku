@@ -64,12 +64,24 @@ function ClaudeProviderMark({ className = '' }: { className?: string }) {
   </svg>;
 }
 
+function GlmProviderMark({ className = '' }: { className?: string }) {
+  // Locally drawn linked-orbit mark for the GLM provider. It avoids initials,
+  // generic robots and hosted assets while remaining crisp at picker sizes.
+  return <svg viewBox="0 0 24 24" aria-label="智谱 GLM" role="img" className={className}>
+    <path d="M12 3.1a8.9 8.9 0 1 0 8.9 8.9A8.9 8.9 0 0 0 12 3.1Zm0 3.1a5.8 5.8 0 1 1-5.8 5.8A5.8 5.8 0 0 1 12 6.2Z" fill="#1479D1" />
+    <path d="M15.9 4.1a7.95 7.95 0 0 1 3.98 9.9l-2.98-1.07a4.8 4.8 0 0 0-2.4-5.96l1.4-2.87Z" fill="#2BB5A8" />
+    <path d="M4.11 10.01A7.95 7.95 0 0 1 14 4.11l-1.07 2.98a4.8 4.8 0 0 0-5.96 2.4l-2.86.52Z" fill="#6AA9E5" />
+    <circle cx="12" cy="12" r="2.1" fill="#2BB5A8" />
+  </svg>;
+}
+
 function ProviderIcon({ provider, className = '' }: { provider: string; className?: string }) {
   const props = { className: `w-4 h-4 ${className}` };
   if (provider === 'deepseek') return <DeepSeekProviderMark className={props.className} />;
   if (provider === 'openai') return <OpenAiProviderMark className={props.className} />;
   if (provider === 'google') return <GeminiProviderMark className={props.className} />;
   if (provider === 'anthropic') return <ClaudeProviderMark className={props.className} />;
+  if (provider === 'glm') return <GlmProviderMark className={props.className} />;
   if (provider === 'minimax' || provider === 'kimi' || provider === 'glm' || provider === 'alibaba') return <Zap {...props} />;
   return <Bot {...props} />;
 }
@@ -87,7 +99,7 @@ function capabilityLabels(model: Model) {
 }
 
 function providerLabel(provider: string) {
-  const labels: Record<string, string> = { openai: 'OpenAI', deepseek: 'DeepSeek', minimax: 'MiniMax', kimi: 'Kimi', glm: 'GLM', anthropic: 'Claude', google: 'Google', alibaba: 'Alibaba' };
+  const labels: Record<string, string> = { openai: 'OpenAI', deepseek: 'DeepSeek', minimax: 'MiniMax', kimi: 'Kimi', glm: '智谱 GLM', anthropic: 'Claude', google: 'Google', alibaba: 'Alibaba' };
   return labels[provider] || provider;
 }
 

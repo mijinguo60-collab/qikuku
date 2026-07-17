@@ -54,6 +54,11 @@ for (const model of claudeEntries) {
   assert(model.supportsText && model.supportsStreaming && model.supportsParsedDocument, `${model.id} must retain verified text, streaming and parsed-document capabilities`);
   assert(!model.supportsVision && !model.supportsNativeFileInput && !model.supportsWebSearch && !model.supportsFileSearch && !model.supportsToolCalling, `${model.id} must not claim unavailable provider capabilities`);
 }
+const glmEntries = catalog.filter((entry) => entry.provider === 'glm');
+assert(glmEntries.length === 1 && glmEntries[0].id === 'glm-52' && glmEntries[0].displayName === 'GLM-5.2', 'GLM catalogue must contain only GLM-5.2');
+assert(glmEntries[0].enabled && glmEntries[0].providerModelId === 'glm-5.2', 'GLM-5.2 must use its verified exact provider model ID when GLM credentials are configured');
+assert(glmEntries[0].supportsText && glmEntries[0].supportsStreaming && glmEntries[0].supportsParsedDocument, 'GLM-5.2 must retain verified text, streaming and parsed-document capabilities');
+assert(!glmEntries[0].supportsVision && !glmEntries[0].supportsNativeFileInput && !glmEntries[0].supportsWebSearch && !glmEntries[0].supportsFileSearch && !glmEntries[0].supportsToolCalling, 'GLM-5.2 must not claim unavailable provider capabilities');
 
 const sourcePrompt = buildUnifiedSystemPrompt([{ content: '企业审批流程为双人复核', documentId: 'document-a', knowledgeSpaceId: 'space-a', score: 0.9, source: '审批制度.md' }], null, false);
 assert(sourcePrompt.includes('审批制度.md') && sourcePrompt.includes('双人复核'), 'knowledge source must be injected into the unified prompt');

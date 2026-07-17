@@ -27,6 +27,7 @@ const checks = [
   ['DeepSeek model selection is catalog-owned', true],
   ['Gemini model selection is catalog-owned', true],
   ['Claude model selection is catalog-owned', true],
+  ['GLM model selection is catalog-owned', true],
   ['EMBEDDING_API_KEY exists', Boolean(process.env.EMBEDDING_API_KEY)],
   ['EMBEDDING_BASE_URL exists', Boolean(process.env.EMBEDDING_BASE_URL)],
   ['EMBEDDING_BASE_URL valid', validHttpUrl(process.env.EMBEDDING_BASE_URL)],
@@ -58,6 +59,9 @@ console.log(`${geminiConfigured ? '✓' : '!'} Gemini 通道 ${geminiConfigured 
 
 const claudeConfigured = Boolean(process.env.CLAUDE_API_KEY) && validHttpUrl(process.env.CLAUDE_BASE_URL);
 console.log(`${claudeConfigured ? '✓' : '!'} Claude 通道 ${claudeConfigured ? '已配置，已验证模型由服务端目录控制' : '尚未配置（不会影响其他已验证模型）'}`);
+
+const glmConfigured = Boolean(process.env.GLM_API_KEY) && validHttpUrl(process.env.GLM_BASE_URL);
+console.log(`${glmConfigured ? '✓' : '!'} GLM 通道 ${glmConfigured ? '已配置，已验证模型由服务端目录控制' : '尚未配置（不会影响其他已验证模型）'}`);
 
 const imageEditReady = process.env.IMAGE_EDIT_ENABLED === 'true'
   && Boolean(process.env.IMAGE_EDIT_API_KEY)

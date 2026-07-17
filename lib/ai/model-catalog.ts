@@ -177,9 +177,54 @@ const gptReferenceEntries: ModelCatalogEntry[] = [
 const referenceEntries: ModelCatalogEntry[] = [
   ['minimax-m3', 'MiniMax-M3', 'minimax'], ['minimax-m27', 'MiniMax-M2.7', 'minimax'],
   ['kimi-k26', 'Kimi-K2.6', 'kimi'], ['kimi-k25', 'Kimi-K2.5', 'kimi'],
-  ['glm-52', 'GLM-5.2', 'glm'], ['glm-51', 'GLM-5.1', 'glm'],
   ['qwen-36-27b', 'Qwen3.6-27B', 'alibaba'],
 ].map(([id, displayName, provider], index) => disabled(id, displayName, provider as ModelProvider, 100 + index));
+
+// The approved channel returned this exact ID from /v1/models. It passed
+// non-streaming text, SSE, RAG-context and Skill+RAG-context checks on
+// 2026-07-17. GLM_MODEL remains deliberately unsupported: every request uses
+// the selected catalogue entry's providerModelId.
+function verifiedGlmModel(): ModelCatalogEntry {
+  const base = disabled('glm-52', 'GLM-5.2', 'glm', 130);
+  const configured = Boolean(process.env.GLM_API_KEY && process.env.GLM_BASE_URL);
+  return {
+    ...base,
+    description: '面向中文企业场景的综合分析模型，适合企业知识问答、资料归纳、结构化写作、问题拆解和经营方案生成。',
+    iconKey: 'glm',
+    recommended: true,
+    tier: 'recommended',
+    estimatedCredits: 12,
+    inputCreditRate: 12 / 5,
+    outputCreditRate: 12 / 5,
+    providerModelId: configured ? 'glm-5.2' : null,
+    enabled: configured,
+    supportsText: true,
+    supportsStreaming: true,
+    // Qikuku parses documents first and injects their text through the shared
+    // enterprise RAG prompt. This is not a native provider file upload.
+    supportsParsedDocument: true,
+    supportsVision: false,
+    supportsNativeFileInput: false,
+    supportsWebSearch: false,
+    supportsFileSearch: false,
+    supportsToolCalling: false,
+    allowedFileTypes: parsedDocumentTypes,
+    details: {
+      ...base.details,
+      reasoning: '定位为中文企业知识问答与综合分析。',
+      speed: '已完成当前通道文字与流式响应验证；复杂资料任务会优先保证分析完整性。',
+      chinese: '已完成中文企业资料问答验证。',
+      longContext: '当前未验证超长上下文上限。',
+      vision: '当前统一 Provider 不发送图片内容，因此不支持会话图片输入。',
+      files: '支持企库库解析 PDF、DOCX、XLSX、TXT、MD、CSV、JSON 后注入文本；不支持模型原生文件输入。',
+      webSearch: '当前未配置并验证真实联网搜索，不能开启联网。',
+      tools: '当前未验证工具调用，不能启用。',
+      bestFor: '中文企业资料问答、归纳、结构化写作、问题拆解和经营方案生成。',
+      limitations: '企业事实仅以检索到的资料为准；资料不足时会明确说明。',
+    },
+    verification: configured ? 'configured' : 'unverified',
+  };
+}
 
 type VerifiedClaudeEntry = Pick<ModelCatalogEntry, 'id' | 'displayName' | 'description' | 'recommended' | 'tier' | 'estimatedCredits' | 'sortOrder'> & {
   providerModelId: string;
@@ -394,7 +439,7 @@ function verifiedDeepSeekModels(): ModelCatalogEntry[] {
 }
 
 export function getServerModelCatalog(): ModelCatalogEntry[] {
-  return [...verifiedDeepSeekModels(), ...gptReferenceEntries, ...verifiedGeminiModels(), ...verifiedClaudeModels(), ...referenceEntries].sort((a, b) => a.sortOrder - b.sortOrder);
+  return [...verifiedDeepSeekModels(), ...gptReferenceEntries, ...verifiedGeminiModels(), ...verifiedClaudeModels(), verifiedGlmModel(), ...referenceEntries].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function getEnabledModels() {

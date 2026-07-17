@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
       configured: Boolean(process.env.CLAUDE_API_KEY && process.env.CLAUDE_BASE_URL),
     },
     {
+      id: 'glm',
+      title: '智谱 GLM 模型通道',
+      description: '仅在真实模型 ID 与能力验证完成后向企业成员开放',
+      configured: Boolean(process.env.GLM_API_KEY && process.env.GLM_BASE_URL),
+    },
+    {
       id: 'image',
       title: '企业图像生成模型',
       description: '用于企业宣传图、海报和内容素材生成',

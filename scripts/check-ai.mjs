@@ -9,6 +9,8 @@ const G = !!process.env.GEMINI_API_KEY;
 const GU = !!process.env.GEMINI_BASE_URL;
 const C = !!process.env.CLAUDE_API_KEY;
 const CU = !!process.env.CLAUDE_BASE_URL;
+const Z = !!process.env.GLM_API_KEY;
+const ZU = !!process.env.GLM_BASE_URL;
 const E = !!process.env.EMBEDDING_API_KEY;
 const B = !!process.env.BLOB_READ_WRITE_TOKEN;
 const isProd = process.env.NODE_ENV === 'production';
@@ -22,6 +24,9 @@ console.log('Gemini model selection: server-owned catalog with verified model ID
 console.log('CLAUDE_API_KEY exists:', C);
 console.log('CLAUDE_BASE_URL exists:', CU);
 console.log('Claude model selection: server-owned catalog with verified model IDs');
+console.log('GLM_API_KEY exists:', Z);
+console.log('GLM_BASE_URL exists:', ZU);
+console.log('GLM model selection: server-owned catalog with verified model ID');
 console.log('EMBEDDING_API_KEY exists:', E);
 console.log('BLOB_READ_WRITE_TOKEN exists:', B);
 console.log('llm ready:', L && LU);
