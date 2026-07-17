@@ -3,28 +3,27 @@ import { getDb } from '@/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
 import { v4 as uuid } from 'uuid';
 import bcrypt from 'bcryptjs';
+import { getRequestSession } from '@/lib/session';
 
 const ALLOWED_ROLES = ['manager','staff','sales','content','readonly'];
 
 export async function GET(request: NextRequest) {
   try {
-    const uc = request.cookies.get('qikuku_user');
-    if (!uc) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    const u = JSON.parse(uc.value);
+    const u = await getRequestSession(request);
+    if (!u) return NextResponse.json({ error: '未登录' }, { status: 401 });
     if (u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'manager') {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
     const db = getDb();
-    const rows = await db.prepare(`SELECT id, name, email, role, "createdAt" FROM "User" WHERE "companyId" = ? ORDER BY "createdAt"`).all(u.companyId);
+    const rows = await db.prepare(`SELECT id, name, email, role, status, "createdAt" FROM "User" WHERE "companyId" = ? ORDER BY "createdAt"`).all(u.companyId);
     return NextResponse.json({ members: rows });
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const uc = request.cookies.get('qikuku_user');
-    if (!uc) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    const u = JSON.parse(uc.value);
+    const u = await getRequestSession(request);
+    if (!u) return NextResponse.json({ error: '未登录' }, { status: 401 });
     if (u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'owner') {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
@@ -42,15 +41,14 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const uc = request.cookies.get('qikuku_user');
-    if (!uc) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    const u = JSON.parse(uc.value);
+    const u = await getRequestSession(request);
+    if (!u) return NextResponse.json({ error: '未登录' }, { status: 401 });
     if (u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'owner') {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }
     const { userId, disabled } = await request.json();
     const db = getDb();
-    await db.prepare(`UPDATE "User" SET role = CASE WHEN ? THEN 'disabled' ELSE 'staff' END WHERE id = ? AND "companyId" = ?`)
+    await db.prepare(`UPDATE "User" SET status = CASE WHEN ? THEN 'disabled' ELSE 'active' END WHERE id = ? AND "companyId" = ?`)
       .run(disabled, userId, u.companyId);
     await writeAuditLog({ companyId: u.companyId, userId: u.id, action: disabled ? 'member_disabled' : 'member_enabled', targetId: userId });
     return NextResponse.json({ success: true });

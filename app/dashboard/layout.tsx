@@ -1,9 +1,14 @@
 import Sidebar from '@/components/Sidebar';
 import { CreditBalanceProvider } from '@/components/billing/CreditBalanceProvider';
 import { getServerSession } from '@/lib/session';
+import { getActiveMembershipForUser } from '@/lib/membership';
+import { redirect } from 'next/navigation';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
+  if (!session) redirect('/auth/login');
+  const membership = await getActiveMembershipForUser(session.id, session.activeCompanyId);
+  if (!membership) redirect('/onboarding');
   const userRole = session?.role || '';
 
   return (

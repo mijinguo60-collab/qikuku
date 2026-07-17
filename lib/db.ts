@@ -8,6 +8,9 @@ import path from 'path';
 let db: any = undefined;
 const URL = process.env.DATABASE_URL || '';
 const REQUIRE_POSTGRES = process.env.DATABASE_REQUIRE_POSTGRES === 'true';
+const PG_POOL_MAX = 5;
+const PG_CONNECTION_TIMEOUT_MS = 10_000;
+const PG_IDLE_TIMEOUT_MS = 30_000;
 
 function toPgParams(sql: string): string {
   let n = 0;
@@ -15,7 +18,16 @@ function toPgParams(sql: string): string {
 }
 
 function createPgDb(): any {
-  const pool = new Pool({ connectionString: URL, max: 5 });
+  const pool = new Pool({
+    connectionString: URL,
+    max: PG_POOL_MAX,
+    connectionTimeoutMillis: PG_CONNECTION_TIMEOUT_MS,
+    idleTimeoutMillis: PG_IDLE_TIMEOUT_MS,
+    keepAlive: true,
+  });
+  pool.on('error', (error: NodeJS.ErrnoException) => {
+    console.error('[DB] Idle PostgreSQL client error:', error.code || 'UNKNOWN');
+  });
   const createClientDb = (client: any) => ({
     prepare: (sql: string) => ({
       get: async (...params: any[]) => {
@@ -51,16 +63,18 @@ function createPgDb(): any {
     // New code that needs real atomicity (such as balance deductions) should use this.
     transactionAsync: async (fn: (tx: any) => Promise<any>) => {
       const client = await pool.connect();
+      let releaseError: Error | undefined;
       try {
         await client.query('BEGIN');
         const result = await fn(createClientDb(client));
         await client.query('COMMIT');
         return result;
       } catch (error) {
+        releaseError = error instanceof Error ? error : new Error('transaction_failed');
         await client.query('ROLLBACK').catch(() => {});
         throw error;
       } finally {
-        client.release();
+        client.release(releaseError);
       }
     },
   };

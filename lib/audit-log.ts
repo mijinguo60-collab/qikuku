@@ -3,6 +3,7 @@
  */
 import { getDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
+import { serializeSanitizedAuditDetail } from '@/lib/audit/sanitize';
 
 export interface AuditEntry {
   companyId: string;
@@ -10,15 +11,16 @@ export interface AuditEntry {
   action: string;
   targetType?: string;
   targetId?: string;
-  detail?: string;
+  detail?: unknown;
   ip?: string;
 }
 
 export async function writeAuditLog(entry: AuditEntry) {
   try {
     const db = getDb();
+    const detail = serializeSanitizedAuditDetail(entry.detail);
     await db.prepare(`INSERT INTO "AuditLog" (id, "companyId", "userId", action, "targetType", "targetId", result, ip, "createdAt") VALUES (?,?,?,?,?,?,?,?,?)`)
-      .run(uuid(), entry.companyId || null, entry.userId || null, entry.action, entry.targetType || null, entry.targetId || null, entry.detail || null, entry.ip || null, new Date().toISOString());
+      .run(uuid(), entry.companyId || null, entry.userId || null, entry.action, entry.targetType || null, entry.targetId || null, detail, entry.ip || null, new Date().toISOString());
   } catch (e: any) { console.error('[AUDIT]', e.message); }
 }
 

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
+import { getRequestSession } from '@/lib/session';
 
 export async function PUT(request: NextRequest) {
   try {
-    const userCookie = request.cookies.get('qikuku_user');
-    if (!userCookie) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    const user = JSON.parse(userCookie.value);
+    const user = await getRequestSession(request);
+    if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 });
     if (user.role !== 'super_admin' && user.role !== 'admin' && user.role !== 'owner') {
       return NextResponse.json({ error: '无权限' }, { status: 403 });
     }

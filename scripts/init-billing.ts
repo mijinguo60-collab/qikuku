@@ -18,7 +18,7 @@ async function main() {
   process.env.DATABASE_REQUIRE_POSTGRES = 'true';
 
   // Dynamic import prevents lib/db.ts from caching an empty DATABASE_URL before loadEnvConfig().
-  const [{ getDb }, { ensureCompanySubscription, ensurePlans }] = await Promise.all([
+  const [{ getDb }, { ensureCompanySubscription }] = await Promise.all([
     import('../lib/db'),
     import('../lib/billing/plans'),
   ]);
@@ -28,9 +28,6 @@ async function main() {
     stage = '读取现有积分账户';
     const accountCountBefore = await db.prepare(`SELECT COUNT(*) as count FROM "CreditAccount"`).get();
 
-    stage = '初始化套餐';
-    await ensurePlans();
-    const plans = await db.prepare(`SELECT COUNT(*) as count FROM "Plan"`).get();
     stage = '读取已有企业';
     const companies = await db.prepare(`SELECT id FROM "Company"`).all();
     stage = '初始化企业订阅与积分';
@@ -41,7 +38,6 @@ async function main() {
     const duplicateTrials = await db.prepare(`SELECT "companyId" FROM "CreditGrant" WHERE "sourceType" = 'trial' GROUP BY "companyId" HAVING COUNT(*) > 1`).all();
 
     console.log('billing:init PostgreSQL initialization completed');
-    console.log(`Plan 套餐初始化数量：${Number(plans?.count || 0)}`);
     console.log(`处理已有企业：${companies.length}`);
     console.log(`创建积分账户：${Math.max(0, Number(accountCountAfter?.count || 0) - Number(accountCountBefore?.count || 0))}`);
     console.log(`重复发放体验积分：${duplicateTrials.length ? '发现异常' : '否'}`);

@@ -2,10 +2,21 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { getDb } from '@/lib/db';
+import { assertUserCanAuthenticate } from '@/lib/auth/user-status';
 
 export const SESSION_COOKIE = 'qikuku_user';
 const MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
-export type ServerSession = { id: string; name: string; email: string; role: string; companyId: string; companyName?: string };
+export type ServerSession = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  companyId: string;
+  companyName?: string;
+  activeCompanyId: string | null;
+};
+type SessionUserInput = Omit<ServerSession, 'activeCompanyId'>;
+type SessionRow = ServerSession & { status: string };
 
 function cookieOptions() { return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, maxAge: MAX_AGE_SECONDS, path: '/' }; }
 
@@ -17,12 +28,17 @@ function sessionSecret() {
 
 function sign(payload: string) { return createHmac('sha256', sessionSecret()).update(payload).digest('base64url'); }
 
-export async function createServerSession(user: ServerSession) {
+export async function createServerSession(user: SessionUserInput) {
   const payload = Buffer.from(JSON.stringify({ sid: randomBytes(24).toString('base64url'), role: user.role })).toString('base64url');
   const token = `${payload}.${sign(payload)}`;
   const expiresAt = new Date(Date.now() + MAX_AGE_SECONDS * 1000).toISOString();
-  await getDb().prepare(`INSERT INTO "UserSession" (id, token, "userId", "expiresAt", "createdAt") VALUES (?,?,?,?,?)`).run(randomBytes(16).toString('hex'), token, user.id, expiresAt, new Date().toISOString());
-  return { token, expiresAt };
+  const db = getDb();
+  const account = await db.prepare(`SELECT status FROM "User" WHERE id=?`).get(user.id);
+  assertUserCanAuthenticate(account);
+  const membership = await db.prepare(`SELECT "companyId" FROM "CompanyMembership" WHERE "userId"=? AND status='active' ORDER BY "joinedAt" ASC,"createdAt" ASC LIMIT 1`).get(user.id);
+  const activeCompanyId = membership?.companyId || null;
+  await db.prepare(`INSERT INTO "UserSession" (id, token, "userId", "activeCompanyId", "expiresAt", "createdAt") VALUES (?,?,?,?,?,?)`).run(randomBytes(16).toString('hex'), token, user.id, activeCompanyId, expiresAt, new Date().toISOString());
+  return { token, expiresAt, activeCompanyId };
 }
 
 async function findSession(token?: string | null): Promise<ServerSession | null> {
@@ -31,8 +47,13 @@ async function findSession(token?: string | null): Promise<ServerSession | null>
   if (!payload || !signature) return null;
   const expected = sign(payload);
   if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return null;
-  const row = await getDb().prepare(`SELECT u.id, u.name, u.email, u.role, u."companyId", c.name as "companyName" FROM "UserSession" s JOIN "User" u ON u.id = s."userId" JOIN "Company" c ON c.id = u."companyId" WHERE s.token = ? AND s."expiresAt" > ?`).get(token, new Date().toISOString());
-  return row || null;
+  const row = await getDb().prepare(`SELECT u.id, u.name, u.email, u.role, u.status, u."companyId", c.name as "companyName", s."activeCompanyId" FROM "UserSession" s JOIN "User" u ON u.id = s."userId" LEFT JOIN "Company" c ON c.id = u."companyId" WHERE s.token = ? AND s."expiresAt" > ?`).get(token, new Date().toISOString()) as SessionRow | null;
+  try {
+    assertUserCanAuthenticate(row);
+  } catch {
+    return null;
+  }
+  return row;
 }
 
 export async function getRequestSession(request: NextRequest) { return findSession(request.cookies.get(SESSION_COOKIE)?.value); }

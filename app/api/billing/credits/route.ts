@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCreditBreakdown } from '@/lib/billing/credits';
-import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { getCurrentCompanySubscription } from '@/lib/billing/plans';
 import { getBillingOwner } from '@/lib/billing/access';
 import { getDb } from '@/lib/db';
 import { isWechatPayConfigured } from '@/lib/payments/wechat';
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const owner = await getBillingOwner(request);
   if (!owner) return NextResponse.json({ error: '未登录' }, { status: 401 });
   try {
-    const subscription = await ensureCompanySubscription(owner.companyId, owner.id);
+    const subscription = await getCurrentCompanySubscription(owner.companyId);
     const credits = await getCreditBreakdown(owner.companyId);
     const db = getDb();
     const [ledger, usage] = await Promise.all([

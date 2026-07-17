@@ -8,7 +8,7 @@ const ROLES = [
   { id: 'readonly', label: '只读' },
 ];
 
-interface Member { id: string; name: string; email: string; role: string; createdAt: string; }
+interface Member { id: string; name: string; email: string; role: string; status: string; createdAt: string; }
 
 export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -77,7 +77,7 @@ export default function TeamPage() {
                 <td className="px-5 py-3 text-text-secondary">{m.email}</td>
                 <td className="px-5 py-3"><span className="text-xs px-2 py-0.5 rounded-full bg-surface-tertiary text-text-secondary">{m.role}</span></td>
                 <td className="px-5 py-3 text-xs text-text-muted">{new Date(m.createdAt).toLocaleDateString('zh-CN')}</td>
-                <td className="px-5 py-3">{m.role !== 'disabled' && <button onClick={() => handleDisable(m.id)} className="text-xs text-danger hover:underline">禁用</button>}</td>
+                <td className="px-5 py-3">{m.status === 'active' && <button onClick={() => handleDisable(m.id)} className="text-xs text-danger hover:underline">禁用</button>}</td>
               </tr>
             ))}
           </tbody>

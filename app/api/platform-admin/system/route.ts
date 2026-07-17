@@ -1,0 +1,3 @@
+import {NextRequest,NextResponse}from'next/server';import{requirePlatformAdmin}from'@/lib/platform-admin/auth';
+const keys=['SESSION_SECRET','DATABASE_URL','DEEPSEEK_API_KEY','OPENAI_API_KEY','EMBEDDING_API_KEY','IMAGE_API_KEY','IMAGE_EDIT_API_KEY','BLOB_READ_WRITE_TOKEN','CRON_SECRET','TENCENT_SMS_SECRET_ID','TENCENT_SMS_SECRET_KEY','TENCENT_SMS_SDK_APP_ID','TENCENT_SMS_SIGN_NAME','TENCENT_SMS_TEMPLATE_ID'];
+export async function GET(r:NextRequest){if(!await requirePlatformAdmin(r))return NextResponse.json({error:'无平台运营权限'},{status:403});return NextResponse.json({business:{icp:'审核中',domain:'已删除，暂停服务',sms:'代码已接入，当前关闭',wechat:'等待 ICP 备案',wechatNative:'等待备案和 AppID',wechatH5:'等待备案',alipay:'等待备案后继续'},configured:Object.fromEntries(keys.map(k=>[k,!!process.env[k]]))})}

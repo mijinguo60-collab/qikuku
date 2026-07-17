@@ -6,7 +6,7 @@ export type CreditSourceType = 'trial' | 'package' | 'purchase' | 'bonus' | 'man
 export type CreditFeature = string;
 
 type GrantInput = { companyId: string; userId?: string | null; sourceType: CreditSourceType; sourceId?: string | null; amount: number; expiresAt?: Date | null; description: string; idempotencyKey: string; featureType?: string; metadata?: Record<string, unknown> };
-type ConsumeInput = { companyId: string; userId?: string | null; amount: number; featureType: CreditFeature; requestId: string; idempotencyKey: string; description?: string; model?: string; outputTokens?: number; imageCount?: number };
+type ConsumeInput = { companyId: string; userId?: string | null; amount: number; featureType: CreditFeature; requestId: string; idempotencyKey: string; description?: string; model?: string; inputTokens?: number; outputTokens?: number; imageCount?: number };
 
 const NOW = () => new Date().toISOString();
 
@@ -110,7 +110,7 @@ export async function consumeCredits(input: ConsumeInput) {
     if (remaining > 0) throw new Error('AI算力积分不足，请充值或升级套餐');
     return { duplicated: false, balance: Number(workingAccount.totalBalance), chargedCredits: input.amount };
   });
-  if (!result.duplicated) await recordUsage({ companyId: input.companyId, userId: input.userId, featureType: input.featureType, requestId: input.requestId, model: input.model, outputTokens: input.outputTokens, imageCount: input.imageCount, chargedCredits: input.amount, success: true });
+  if (!result.duplicated) await recordUsage({ companyId: input.companyId, userId: input.userId, featureType: input.featureType, requestId: input.requestId, model: input.model, inputTokens: input.inputTokens, outputTokens: input.outputTokens, imageCount: input.imageCount, chargedCredits: input.amount, success: true });
   return result;
 }
 

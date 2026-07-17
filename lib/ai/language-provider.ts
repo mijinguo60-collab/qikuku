@@ -4,6 +4,8 @@
  */
 import { buildOpenAiCompatibleEndpoint, providerStatusMessage, redactProviderBody, responseShape } from './provider-utils';
 
+const MODEL_REQUEST_TIMEOUT_MS = 60_000;
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -77,17 +79,25 @@ function usageFrom(data: any) {
 
 export async function* chatCompletionStream(options: ChatCompletionOptions): AsyncGenerator<string, ChatCompletionResponse, unknown> {
   const { model, apiKey, url } = getOptions(options);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: options.messages,
-      max_tokens: options.maxTokens || 2048,
-      temperature: options.temperature ?? 0.7,
-      stream: true,
-    }),
-  });
+  const streamAbort = AbortSignal.timeout(MODEL_REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: options.messages,
+        max_tokens: options.maxTokens || 2048,
+        temperature: options.temperature ?? 0.7,
+        stream: true,
+      }),
+      signal: streamAbort,
+    });
+  } catch (error: any) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new Error('模型流式响应超时，请稍后重试');
+    throw error;
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -105,7 +115,14 @@ export async function* chatCompletionStream(options: ChatCompletionOptions): Asy
   let lastShape: Record<string, unknown> = {};
 
   while (true) {
-    const { done, value } = await reader.read();
+    let next: ReadableStreamReadResult<Uint8Array>;
+    try {
+      next = await reader.read();
+    } catch (error: any) {
+      if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new Error('模型流式响应超时，请稍后重试');
+      throw error;
+    }
+    const { done, value } = next;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
@@ -140,17 +157,24 @@ export async function* chatCompletionStream(options: ChatCompletionOptions): Asy
 
 export async function chatCompletion(options: ChatCompletionOptions): Promise<ChatCompletionResponse> {
   const { model, apiKey, url } = getOptions(options);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: options.messages,
-      max_tokens: options.maxTokens || 2048,
-      temperature: options.temperature ?? 0.7,
-      stream: false,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model,
+        messages: options.messages,
+        max_tokens: options.maxTokens || 2048,
+        temperature: options.temperature ?? 0.7,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(MODEL_REQUEST_TIMEOUT_MS),
+    });
+  } catch (error: any) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new Error('模型响应超时，请稍后重试');
+    throw error;
+  }
 
   if (!res.ok) {
     const body = await res.text();

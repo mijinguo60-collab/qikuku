@@ -4,6 +4,7 @@
 
 import { getDb } from './db';
 import { v4 as uuidv4 } from 'uuid';
+import { serializeSanitizedAuditDetail } from './audit/sanitize';
 
 export async function logAction(params: {
   companyId: string;
@@ -11,7 +12,7 @@ export async function logAction(params: {
   action: string;
   targetType?: string;
   targetId?: string;
-  result?: string;
+  result?: unknown;
 }): Promise<void> {
   const db = getDb();
   const stmt = db.prepare(
@@ -24,7 +25,7 @@ export async function logAction(params: {
     params.action,
     params.targetType || null,
     params.targetId || null,
-    params.result || null,
+    serializeSanitizedAuditDetail(params.result),
     new Date().toISOString()
   );
 }

@@ -1,29 +1,3 @@
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-
-const steps = [
-  { n:'01', t:'企业资料收集', d:'收集公司简介、组织架构、岗位职责、SOP、销售话术、产品介绍、案例资料。' },
-  { n:'02', t:'知识空间规划', d:'规划知识空间分类：销售话术、客服FAQ、业务SOP、产品资料等。' },
-  { n:'03', t:'资料导入与清洗', d:'上传资料，系统自动解析文本、切片、建立检索索引。' },
-  { n:'04', t:'AI 问答与 Skill 配置', d:'配置知识库问答和管理Skill问答，导入话术和业务规则。' },
-  { n:'05', t:'员工培训', d:'为不同岗位生成培训课程，帮助员工快速掌握系统。' },
-  { n:'06', t:'上线使用与复盘', d:'正式上线，定期复盘知识库使用数据，持续补充企业资料。' },
-];
-const checklist = ['公司简介','组织架构','岗位职责','SOP','销售话术','客户FAQ','产品/服务介绍','案例资料','合同/报价模板','培训文档','常见问题','禁止对外披露资料清单'];
-
-export default function OnboardingPage() {
-  return (
-    <main className="min-h-screen bg-white"><Navbar />
-    <section className="max-w-4xl mx-auto px-6 pt-24 pb-20">
-      <h1 className="text-3xl md:text-4xl font-bold text-text-primary mb-4">企业上线流程</h1>
-      <p className="text-text-secondary mb-12">从资料收集到正式上线，标准交付流程约需 3-5 个工作日。</p>
-      <div className="space-y-8 mb-16">
-        {steps.map(s => <div key={s.n} className="flex gap-5"><div className="w-10 h-10 rounded-xl bg-surface-secondary flex items-center justify-center text-sm font-bold text-text-primary flex-shrink-0">{s.n}</div><div><h3 className="text-sm font-semibold text-text-primary mb-1">{s.t}</h3><p className="text-sm text-text-secondary leading-relaxed">{s.d}</p></div></div>)}
-      </div>
-      <h2 className="text-xl font-bold text-text-primary mb-6">资料准备清单</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {checklist.map(c => <div key={c} className="rounded-xl bg-surface-secondary px-4 py-3 text-sm text-text-secondary">✓ {c}</div>)}
-      </div>
-    </section><Footer /></main>
-  );
-}
+'use client';
+import { useState } from 'react'; import { useRouter } from 'next/navigation'; import { Building2, Loader2 } from 'lucide-react';
+export default function OnboardingPage(){const r=useRouter(),[form,setForm]=useState<any>({name:'',industry:'',teamSize:'',contactName:'',contactPhone:'',agreed:false}),[error,setError]=useState(''),[loading,setLoading]=useState(false);const change=(k:string,v:any)=>setForm((f:any)=>({...f,[k]:v}));async function submit(e:any){e.preventDefault();setLoading(true);setError('');const res=await fetch('/api/onboarding/company',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});const data=await res.json();setLoading(false);if(!res.ok){setError(data.error||'创建失败');return;}r.replace('/dashboard');r.refresh();}return <main className="min-h-screen bg-surface-primary flex items-center justify-center p-6"><form onSubmit={submit} className="card w-full max-w-xl p-7"><div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center mb-4"><Building2 className="w-5 h-5 text-accent-blue"/></div><h1 className="text-2xl font-bold">欢迎使用企库库</h1><p className="text-sm text-text-secondary mt-2">创建一家新企业，开始沉淀可复用的企业知识。</p><div className="grid sm:grid-cols-2 gap-4 mt-6"><input className="input-primary sm:col-span-2" placeholder="企业名称" value={form.name} onChange={e=>change('name',e.target.value)}/><input className="input-primary" placeholder="所属行业" value={form.industry} onChange={e=>change('industry',e.target.value)}/><select className="input-primary" value={form.teamSize} onChange={e=>change('teamSize',e.target.value)}><option value="">企业规模</option><option>1-10人</option><option>11-50人</option><option>51-200人</option><option>200人以上</option></select><input className="input-primary" placeholder="联系人姓名" value={form.contactName} onChange={e=>change('contactName',e.target.value)}/><input className="input-primary" placeholder="联系手机号（可选）" value={form.contactPhone} onChange={e=>change('contactPhone',e.target.value)}/></div><label className="flex gap-2 text-xs text-text-secondary mt-5"><input type="checkbox" checked={form.agreed} onChange={e=>change('agreed',e.target.checked)}/>我已阅读并同意企业服务协议</label>{error&&<p className="text-sm text-danger mt-3">{error}</p>}<button disabled={loading} className="btn-primary w-full mt-5 text-sm">{loading?<Loader2 className="w-4 h-4 animate-spin inline mr-2"/>:null}创建一家新企业</button><p className="text-center text-xs text-text-muted mt-5">员工加入企业功能即将开放</p></form></main>}

@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Sparkles, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key, Wallet } from 'lucide-react';
+import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key, Wallet } from 'lucide-react';
 import { isSidebarGroupVisible } from '@/lib/roles';
 import { useState } from 'react';
 import { useCreditBalance } from '@/hooks/useCreditBalance';
@@ -13,8 +13,7 @@ const menuGroups = [
       { href: '/dashboard', icon: LayoutDashboard, label: '工作台' },
       { href: '/dashboard/knowledge-spaces', icon: FolderOpen, label: '知识空间' },
       { href: '/dashboard/files', icon: FileText, label: '文件中心' },
-      { href: '/dashboard/chat', icon: MessageSquare, label: 'AI 问答' },
-      { href: '/dashboard/skill-chat', icon: Sparkles, label: '管理 Skill 问答' },
+      { href: '/dashboard/chat', icon: MessageSquare, label: 'AI 对话' },
       { href: '/dashboard/skills', icon: Lightbulb, label: 'Skill 中心' },
       { href: '/dashboard/images', icon: Image, label: 'AI 做图' },
       { href: '/dashboard/assets', icon: Library, label: '图片素材库' },

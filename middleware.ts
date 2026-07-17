@@ -9,6 +9,11 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/api/ai') || pathname.startsWith('/api/billing') || pathname.startsWith('/api/admin')) {
     if (!canAccess) {
+      if (pathname.startsWith('/api/')) {
+        const response = NextResponse.json({ error: '未登录' }, { status: 401 });
+        response.cookies.set('qikuku_user', '', { path: '/', maxAge: 0 });
+        return response;
+      }
       const u = new URL('/auth/login', request.url);
       u.searchParams.set('redirect', pathname);
       const response = NextResponse.redirect(u);

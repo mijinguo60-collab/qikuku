@@ -59,8 +59,7 @@ export default async function DashboardPage() {
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { href: '/dashboard/chat', icon: MessageSquare, label: 'AI 问答', color: 'bg-accent-blue/10 text-accent-blue' },
-              { href: '/dashboard/skill-chat', icon: Brain, label: '管理诊断', color: 'bg-accent-purple/10 text-accent-purple' },
+              { href: '/dashboard/chat', icon: MessageSquare, label: 'AI 对话', color: 'bg-accent-blue/10 text-accent-blue' },
               { href: '/dashboard/images', icon: Image, label: 'AI 做图', color: 'bg-accent-cyan/10 text-accent-cyan' },
               { href: '/dashboard/files', icon: FileText, label: '上传文件', color: 'bg-success/10 text-success' },
             ].map((a, i) => (

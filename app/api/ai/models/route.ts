@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-function hasSession(request: NextRequest) {
-  const userCookie = request.cookies.get('qikuku_user');
-  if (!userCookie) return false;
-  try {
-    const user = JSON.parse(userCookie.value);
-    return Boolean(user?.id && user?.companyId);
-  } catch {
-    return false;
-  }
-}
+import { getRequestSession } from '@/lib/session';
+import { getEnabledModels, getServerModelCatalog, toPublicModel } from '@/lib/ai/model-catalog';
 
 export async function GET(request: NextRequest) {
-  if (!hasSession(request)) return NextResponse.json({ error: '未登录' }, { status: 401 });
+  if (!await getRequestSession(request)) return NextResponse.json({ error: '未登录' }, { status: 401 });
 
   // Only expose platform capability state. Keys, Base URLs and concrete model names stay server-side.
   const providers = [
@@ -21,6 +12,12 @@ export async function GET(request: NextRequest) {
       title: '企业 AI 问答模型',
       description: '用于企业知识库问答与管理分析',
       configured: Boolean(process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_BASE_URL && process.env.DEEPSEEK_MODEL),
+    },
+    {
+      id: 'openai',
+      title: 'GPT 模型通道',
+      description: '仅在真实模型 ID 与能力验证完成后向企业成员开放',
+      configured: Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_BASE_URL),
     },
     {
       id: 'image',
@@ -42,5 +39,11 @@ export async function GET(request: NextRequest) {
     },
   ];
 
-  return NextResponse.json({ providers });
+  return NextResponse.json({
+    providers,
+    // Unified chat only receives enabled entries. The settings page may use the
+    // disabled count for diagnostics, without seeing invented provider IDs.
+    models: getEnabledModels().map(toPublicModel),
+    unavailableModelCount: getServerModelCatalog().filter((model) => !model.enabled).length,
+  });
 }

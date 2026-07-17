@@ -6,7 +6,7 @@ import { logAction } from '@/lib/audit';
 
 async function guard(request: NextRequest) {
   const user = await getBillingOwner(request);
-  return isPlatformSuperAdmin(user) ? user : null;
+  return await isPlatformSuperAdmin(user) ? user : null;
 }
 
 export async function GET(request: NextRequest) {

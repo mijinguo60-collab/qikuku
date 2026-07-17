@@ -2,12 +2,14 @@ import { getDb } from './db';
 import { compare, hash } from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { ensureCompanySubscription } from './billing/plans';
+import { UserAccountStatus } from './auth/user-status';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: string;
+  status: UserAccountStatus | string;
   companyId: string;
   companyName?: string;
 }
@@ -50,7 +52,7 @@ export async function createUser(
     await insertUser.run(userId, name, email, passwordHash, 'super_admin', companyId);
     // 幂等初始化体验订阅和首次积分；失败不会重复发放。
     await ensureCompanySubscription(companyId, userId);
-    return { id: userId, name, email, role: 'super_admin', companyId };
+    return { id: userId, name, email, role: 'super_admin', status: 'active', companyId };
   } catch {
     return null;
   }
@@ -61,9 +63,9 @@ export async function authenticateUser(email: string, password: string): Promise
   try {
     const db = getDb();
     const stmt = db.prepare(`
-      SELECT u.id, u.name, u.email, u."passwordHash", u.role, u."companyId", c.name as "companyName"
-      FROM "User" u JOIN "Company" c ON u."companyId" = c.id
-      WHERE u.email = ?
+      SELECT u.id, u.name, u.email, u."passwordHash", u.role, u.status, u."companyId", c.name as "companyName"
+      FROM "User" u LEFT JOIN "Company" c ON u."companyId" = c.id
+      WHERE u.email = ? AND u."passwordHash" IS NOT NULL
     `);
     const row = await stmt.get(email);
 
@@ -72,7 +74,7 @@ export async function authenticateUser(email: string, password: string): Promise
       if (valid) {
         return {
           id: row.id, name: row.name, email: row.email,
-          role: row.role, companyId: row.companyId,
+          role: row.role, status: row.status, companyId: row.companyId,
           companyName: row.companyName,
         };
       }
@@ -92,6 +94,7 @@ export async function authenticateUser(email: string, password: string): Promise
       name: '张老板',
       email: 'admin@zhucheng.com',
       role: 'super_admin',
+      status: 'active',
       companyId: 'demo-company-zhucheng',
       companyName: '诸城吃喝玩乐',
     };
@@ -103,8 +106,8 @@ export async function authenticateUser(email: string, password: string): Promise
 export function getUserById(id: string): User | null {
   const db = getDb();
   const row = db.prepare(`
-    SELECT u.id, u.name, u.email, u.role, u."companyId", c.name as "companyName"
-    FROM "User" u JOIN "Company" c ON u."companyId" = c.id
+    SELECT u.id, u.name, u.email, u.role, u.status, u."companyId", c.name as "companyName"
+    FROM "User" u LEFT JOIN "Company" c ON u."companyId" = c.id
     WHERE u.id = ?
   `).get(id) as any;
 
@@ -114,6 +117,7 @@ export function getUserById(id: string): User | null {
     name: row.name,
     email: row.email,
     role: row.role,
+    status: row.status,
     companyId: row.companyId,
     companyName: row.companyName,
   };

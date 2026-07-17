@@ -5,6 +5,7 @@ import { join } from 'path';
 const PATTERNS = [
   /DATABASE_URL=postgresql:\/\/[^$\s]+/,
   /DEEPSEEK_API_KEY=sk-[^\s]+/,
+  /OPENAI_API_KEY=sk-[^\s]+/,
   /IMAGE_API_KEY=sk-[^\s]+/,
   /EMBEDDING_API_KEY=sk-[^\s]+/,
   /BLOB_READ_WRITE_TOKEN=[^\s]{20,}/,

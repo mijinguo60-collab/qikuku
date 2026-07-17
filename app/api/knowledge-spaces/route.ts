@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '@/lib/db';
+import { getRequestSession } from '@/lib/session';
 
 export async function POST(request: NextRequest) {
   try {
-    const userCookie = request.cookies.get('qikuku_user');
-    if (!userCookie) return NextResponse.json({ error: '未登录' }, { status: 401 });
-
-    let user: { id: string; companyId: string };
-    try {
-      user = JSON.parse(userCookie.value);
-    } catch {
-      return NextResponse.json({ error: '登录状态无效，请重新登录' }, { status: 401 });
-    }
+    const user = await getRequestSession(request);
+    if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 });
 
     const body = await request.json();
     const name = typeof body.name === 'string' ? body.name.trim() : '';

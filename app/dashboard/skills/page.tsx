@@ -69,7 +69,7 @@ export default async function SkillsPage() {
                   <p className="text-[10px] text-text-muted uppercase mb-2">适用问题</p>
                   <div className="space-y-1.5">
                     {sqs.slice(0, 3).map((q: string, i: number) => (
-                      <Link key={i} href={`/dashboard/skill-chat?skill=${s.id}`}
+                      <Link key={i} href={`/dashboard/chat?skill=${s.id}`}
                         className="block text-xs text-text-secondary hover:text-text-primary transition-colors py-1">
                         → {q}
                       </Link>
@@ -77,7 +77,7 @@ export default async function SkillsPage() {
                   </div>
                 </div>
               )}
-              <Link href={`/dashboard/skill-chat?skill=${s.id}`}
+              <Link href={`/dashboard/chat?skill=${s.id}`}
                 className="inline-flex items-center gap-1 text-xs font-medium text-accent-blue hover:underline">
                 使用此 Skill 诊断 <ArrowRight className="w-3 h-3" />
               </Link>

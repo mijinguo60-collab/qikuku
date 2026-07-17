@@ -45,14 +45,44 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+export type KnowledgeSource = {
+  content: string;
+  documentId: string;
+  knowledgeSpaceId: string;
+  score: number;
+  source: string;
+};
+
+/**
+ * The current data model has no per-user space ACL. Only AI-enabled spaces with
+ * visibility=all are therefore eligible; a future ACL can extend this boundary
+ * without allowing a caller to widen its company scope.
+ */
+export async function getAccessibleKnowledgeSpaceIds(companyId: string, requestedIds?: string[]) {
+  const spaces = await getDb().prepare(
+    `SELECT id FROM "KnowledgeSpace"
+     WHERE "companyId" = ? AND "isAiEnabled" = true AND (visibility = 'all' OR visibility IS NULL)`
+  ).all(companyId) as Array<{ id: string }>;
+  const allowed = new Set(spaces.map((space) => space.id));
+  if (!requestedIds?.length) return Array.from(allowed);
+  const cleanRequested = Array.from(new Set(requestedIds.filter((id) => typeof id === 'string' && id.length <= 100)));
+  if (cleanRequested.some((id) => !allowed.has(id))) throw new Error('知识空间不存在、未启用或无权访问');
+  return cleanRequested;
+}
+
 export async function searchKnowledge(
-  query: string, companyId: string, topK = 5
-): Promise<{ content: string; documentId: string; score: number; source: string }[]> {
+  query: string, companyId: string, topK = 5, knowledgeSpaceIds?: string[]
+): Promise<KnowledgeSource[]> {
   const db = getDb();
+  const accessibleSpaceIds = await getAccessibleKnowledgeSpaceIds(companyId, knowledgeSpaceIds);
+  if (!accessibleSpaceIds.length) return [];
+  const placeholders = accessibleSpaceIds.map(() => '?').join(',');
   const chunks = db.prepare(
     `SELECT kc.id, kc.content, kc.embedding, kc."documentId", d.filename
-     FROM "KnowledgeChunk" kc JOIN "Document" d ON kc."documentId" = d.id WHERE kc."companyId" = ?`
-  ).all(companyId) as any[];
+     , d."knowledgeSpaceId"
+     FROM "KnowledgeChunk" kc JOIN "Document" d ON kc."documentId" = d.id
+     WHERE kc."companyId" = ? AND d."companyId" = ? AND d."knowledgeSpaceId" IN (${placeholders})`
+  ).all(companyId, companyId, ...accessibleSpaceIds) as any[];
 
   if (chunks.length === 0) return [];
 
@@ -65,7 +95,7 @@ export async function searchKnowledge(
       return chunks
         .map((c: any) => ({
           content: c.content, documentId: c.documentId,
-          source: c.filename || '未知文件',
+          source: c.filename || '未知文件', knowledgeSpaceId: c.knowledgeSpaceId,
           score: c.embedding ? cosineSimilarity(qVec, JSON.parse(c.embedding)) : 0,
         }))
         .filter(r => r.score > 0.3).sort((a, b) => b.score - a.score).slice(0, topK);
@@ -82,7 +112,7 @@ export async function searchKnowledge(
         const m = lower.match(new RegExp(kw.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'));
         if (m) score += m.length;
       }
-      return { content: c.content, documentId: c.documentId, source: c.filename || '未知文件', score };
+      return { content: c.content, documentId: c.documentId, source: c.filename || '未知文件', knowledgeSpaceId: c.knowledgeSpaceId, score };
     })
     .filter(r => r.score > 0).sort((a, b) => b.score - a.score).slice(0, topK);
 }
