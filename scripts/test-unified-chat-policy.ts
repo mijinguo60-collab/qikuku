@@ -9,7 +9,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 loadEnvConfig(process.cwd());
 const catalog = getServerModelCatalog();
-const requiredDisplayNames = ['MiniMax-M3', 'DeepSeek V4 Flash', 'DeepSeek V4 Pro', 'Kimi-K2.6', 'GLM-5.2', 'GPT-5.4', 'GPT-5.4 mini', 'GPT-5.5', 'GPT-5.6 Luna', 'GPT-5.6 Sol', 'GPT-5.6 Terra', 'Claude Sonnet 4.6', 'Gemini 3 Flash Preview', 'Gemini 3.1 Pro Preview', 'Gemini 3.5 Flash', 'Qwen3.6-27B'];
+const requiredDisplayNames = ['MiniMax-M3', 'DeepSeek V4 Flash', 'DeepSeek V4 Pro', 'Kimi-K2.6', 'GLM-5.2', 'GPT-5.4', 'GPT-5.4 mini', 'GPT-5.5', 'GPT-5.6 Luna', 'GPT-5.6 Sol', 'GPT-5.6 Terra', 'Claude Haiku 4.5', 'Claude Sonnet 4.6', 'Claude Opus 4.6', 'Claude Opus 4.7', 'Claude Opus 4.8', 'Gemini 3 Flash Preview', 'Gemini 3.1 Pro Preview', 'Gemini 3.5 Flash', 'Qwen3.6-27B'];
 
 for (const displayName of requiredDisplayNames) assert(catalog.some((model) => model.displayName === displayName), `missing reference model: ${displayName}`);
 for (const model of getEnabledModels()) {
@@ -42,6 +42,15 @@ assert(geminiEntries.length === expectedGeminiIds.length, 'Gemini catalogue must
 assert(geminiEntries.every((entry) => expectedGeminiIds.includes(entry.id)), 'Gemini catalogue contains an unapproved model');
 for (const model of geminiEntries) {
   assert(model.enabled && model.providerModelId, `${model.id} must expose its verified exact provider model ID when Gemini credentials are configured`);
+  assert(model.supportsText && model.supportsStreaming && model.supportsParsedDocument, `${model.id} must retain verified text, streaming and parsed-document capabilities`);
+  assert(!model.supportsVision && !model.supportsNativeFileInput && !model.supportsWebSearch && !model.supportsFileSearch && !model.supportsToolCalling, `${model.id} must not claim unavailable provider capabilities`);
+}
+const claudeEntries = catalog.filter((entry) => entry.provider === 'anthropic');
+const expectedClaudeIds = ['claude-haiku-45', 'claude-sonnet-46', 'claude-opus-46', 'claude-opus-47', 'claude-opus-48'];
+assert(claudeEntries.length === expectedClaudeIds.length, 'Claude catalogue must contain exactly the five approved entries');
+assert(claudeEntries.every((entry) => expectedClaudeIds.includes(entry.id)), 'Claude catalogue contains an unapproved model');
+for (const model of claudeEntries) {
+  assert(model.enabled && model.providerModelId, `${model.id} must expose its verified exact provider model ID when Claude credentials are configured`);
   assert(model.supportsText && model.supportsStreaming && model.supportsParsedDocument, `${model.id} must retain verified text, streaming and parsed-document capabilities`);
   assert(!model.supportsVision && !model.supportsNativeFileInput && !model.supportsWebSearch && !model.supportsFileSearch && !model.supportsToolCalling, `${model.id} must not claim unavailable provider capabilities`);
 }

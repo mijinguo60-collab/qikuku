@@ -4,17 +4,18 @@ import { useEffect, useState } from 'react';
 import { AlertCircle, Brain, CheckCircle2, Database, Image, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface ProviderStatus {
-  id: 'language' | 'openai' | 'gemini' | 'image' | 'image-edit' | 'embedding';
+  id: 'language' | 'openai' | 'gemini' | 'claude' | 'image' | 'image-edit' | 'embedding';
   title: string;
   description: string;
   configured: boolean;
 }
 
-const providerIcons = { language: Brain, openai: Brain, gemini: Sparkles, image: Image, 'image-edit': Image, embedding: Database };
+const providerIcons = { language: Brain, openai: Brain, gemini: Sparkles, claude: Sparkles, image: Image, 'image-edit': Image, embedding: Database };
 const providerColors = {
   language: 'bg-accent-blue/10 text-accent-blue',
   openai: 'bg-accent-blue/10 text-accent-blue',
   gemini: 'bg-accent-purple/10 text-accent-purple',
+  claude: 'bg-warning/10 text-warning',
   image: 'bg-accent-cyan/10 text-accent-cyan',
   'image-edit': 'bg-accent-cyan/10 text-accent-cyan',
   embedding: 'bg-accent-purple/10 text-accent-purple',

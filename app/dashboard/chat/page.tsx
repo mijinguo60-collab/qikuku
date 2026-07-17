@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bot, Brain, Check, ChevronDown, Copy, FileUp, Globe2, ImagePlus, Info, Lightbulb, Loader2, Search, Send, Sparkles, WandSparkles, X, Zap } from 'lucide-react';
+import { Bot, Brain, Check, ChevronDown, Copy, FileUp, Globe2, ImagePlus, Info, Lightbulb, Loader2, Search, Send, Sparkles, X, Zap } from 'lucide-react';
 import ConversationHistory, { ConversationSummary } from '@/components/dashboard/ConversationHistory';
 import { useCreditBalance } from '@/hooks/useCreditBalance';
 
@@ -54,12 +54,22 @@ function GeminiProviderMark({ className = '' }: { className?: string }) {
   </svg>;
 }
 
+function ClaudeProviderMark({ className = '' }: { className?: string }) {
+  // Locally drawn warm radial mark for Claude. It uses no hosted brand asset
+  // and stays sharp at the compact picker and mobile drawer sizes.
+  return <svg viewBox="0 0 24 24" aria-label="Claude" role="img" className={className}>
+    <path d="M12 2.7c1.35 3.74 2.2 5.18 5.94 6.53-3.74 1.35-5.18 2.2-6.53 5.94-1.35-3.74-2.2-5.18-5.94-6.53 3.74-1.35 5.18-2.2 6.53-5.94Z" fill="#D97757" />
+    <path d="M18.1 11.7c1.05 2.04 1.8 2.79 3.83 3.84-2.03 1.04-2.78 1.79-3.83 3.83-1.04-2.04-1.79-2.79-3.83-3.83 2.04-1.05 2.79-1.8 3.83-3.84Z" fill="#E8A18A" />
+    <path d="M7.1 15.2c.74 1.45 1.28 1.99 2.73 2.73-1.45.74-1.99 1.28-2.73 2.73-.74-1.45-1.28-1.99-2.73-2.73 1.45-.74 1.99-1.28 2.73-2.73Z" fill="#BF6047" />
+  </svg>;
+}
+
 function ProviderIcon({ provider, className = '' }: { provider: string; className?: string }) {
   const props = { className: `w-4 h-4 ${className}` };
   if (provider === 'deepseek') return <DeepSeekProviderMark className={props.className} />;
   if (provider === 'openai') return <OpenAiProviderMark className={props.className} />;
   if (provider === 'google') return <GeminiProviderMark className={props.className} />;
-  if (provider === 'anthropic') return <WandSparkles {...props} />;
+  if (provider === 'anthropic') return <ClaudeProviderMark className={props.className} />;
   if (provider === 'minimax' || provider === 'kimi' || provider === 'glm' || provider === 'alibaba') return <Zap {...props} />;
   return <Bot {...props} />;
 }
@@ -77,7 +87,7 @@ function capabilityLabels(model: Model) {
 }
 
 function providerLabel(provider: string) {
-  const labels: Record<string, string> = { openai: 'OpenAI', deepseek: 'DeepSeek', minimax: 'MiniMax', kimi: 'Kimi', glm: 'GLM', anthropic: 'Anthropic', google: 'Google', alibaba: 'Alibaba' };
+  const labels: Record<string, string> = { openai: 'OpenAI', deepseek: 'DeepSeek', minimax: 'MiniMax', kimi: 'Kimi', glm: 'GLM', anthropic: 'Claude', google: 'Google', alibaba: 'Alibaba' };
   return labels[provider] || provider;
 }
 
@@ -85,6 +95,7 @@ function tierLabel(tier: string) {
   if (tier === 'recommended') return '推荐';
   if (tier === 'advanced') return '高级';
   if (tier === 'fast') return '快速';
+  if (tier === 'flagship') return '旗舰';
   return '待验证';
 }
 

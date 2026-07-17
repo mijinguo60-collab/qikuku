@@ -11,7 +11,7 @@ export interface LlmResult {
   error?: string;
 }
 
-export type RuntimeLlmProvider = Extract<ModelProvider, 'deepseek' | 'openai' | 'google'>;
+export type RuntimeLlmProvider = Extract<ModelProvider, 'deepseek' | 'openai' | 'google' | 'anthropic'>;
 
 export type LlmRequestOptions = ChatCompletionOptions & {
   /**
@@ -22,8 +22,8 @@ export type LlmRequestOptions = ChatCompletionOptions & {
 };
 
 const providerEnvironment: Record<RuntimeLlmProvider, {
-  key: 'DEEPSEEK_API_KEY' | 'OPENAI_API_KEY' | 'GEMINI_API_KEY';
-  baseUrl: 'DEEPSEEK_BASE_URL' | 'OPENAI_BASE_URL' | 'GEMINI_BASE_URL';
+  key: 'DEEPSEEK_API_KEY' | 'OPENAI_API_KEY' | 'GEMINI_API_KEY' | 'CLAUDE_API_KEY';
+  baseUrl: 'DEEPSEEK_BASE_URL' | 'OPENAI_BASE_URL' | 'GEMINI_BASE_URL' | 'CLAUDE_BASE_URL';
   label: string;
 }> = {
   deepseek: {
@@ -40,10 +40,16 @@ const providerEnvironment: Record<RuntimeLlmProvider, {
   google: {
     key: 'GEMINI_API_KEY', baseUrl: 'GEMINI_BASE_URL', label: 'Gemini',
   },
+  // Claude stays unavailable until this channel proves OpenAI-compatible
+  // request/response semantics. The exact selected model is always supplied
+  // by the server catalogue; CLAUDE_MODEL is intentionally unsupported.
+  anthropic: {
+    key: 'CLAUDE_API_KEY', baseUrl: 'CLAUDE_BASE_URL', label: 'Claude',
+  },
 };
 
 export function isRuntimeLlmProvider(provider: ModelProvider): provider is RuntimeLlmProvider {
-  return provider === 'deepseek' || provider === 'openai' || provider === 'google';
+  return provider === 'deepseek' || provider === 'openai' || provider === 'google' || provider === 'anthropic';
 }
 
 export function getLlmConfig(provider: RuntimeLlmProvider = 'deepseek') {

@@ -40,7 +40,7 @@ export type ModelCatalogEntry = ModelCapabilities & {
   enabled: boolean;
   sortOrder: number;
   recommended: boolean;
-  tier: 'recommended' | 'advanced' | 'fast' | 'unverified';
+  tier: 'recommended' | 'advanced' | 'fast' | 'flagship' | 'unverified';
   inputCreditRate: number;
   outputCreditRate: number;
   estimatedCredits: number;
@@ -178,11 +178,91 @@ const referenceEntries: ModelCatalogEntry[] = [
   ['minimax-m3', 'MiniMax-M3', 'minimax'], ['minimax-m27', 'MiniMax-M2.7', 'minimax'],
   ['kimi-k26', 'Kimi-K2.6', 'kimi'], ['kimi-k25', 'Kimi-K2.5', 'kimi'],
   ['glm-52', 'GLM-5.2', 'glm'], ['glm-51', 'GLM-5.1', 'glm'],
-  ['claude-opus-48', 'Claude Opus 4.8', 'anthropic'], ['claude-opus-47', 'Claude Opus 4.7', 'anthropic'],
-  ['claude-opus-46', 'Claude Opus 4.6', 'anthropic'], ['claude-opus-45', 'Claude Opus 4.5', 'anthropic'],
-  ['claude-sonnet-46', 'Claude Sonnet 4.6', 'anthropic'], ['claude-sonnet-45', 'Claude Sonnet 4.5', 'anthropic'], ['claude-haiku-45', 'Claude Haiku 4.5', 'anthropic'],
   ['qwen-36-27b', 'Qwen3.6-27B', 'alibaba'],
 ].map(([id, displayName, provider], index) => disabled(id, displayName, provider as ModelProvider, 100 + index));
+
+type VerifiedClaudeEntry = Pick<ModelCatalogEntry, 'id' | 'displayName' | 'description' | 'recommended' | 'tier' | 'estimatedCredits' | 'sortOrder'> & {
+  providerModelId: string;
+  details: Pick<ModelDetails, 'reasoning' | 'speed' | 'chinese' | 'longContext' | 'bestFor'>;
+};
+
+// These five IDs were returned by the approved channel's /v1/models and
+// verified through text, SSE, RAG-context and Skill+RAG-context requests on
+// 2026-07-17. Credentials remain shared, while every request receives the
+// exact selected providerModelId; CLAUDE_MODEL is deliberately unsupported.
+const verifiedClaudeEntries: VerifiedClaudeEntry[] = [
+  {
+    id: 'claude-haiku-45', providerModelId: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4.5',
+    description: '快速轻量的 Claude 模型，适合高频企业知识查询、资料摘要、分类整理和简短内容生成。',
+    recommended: false, tier: 'fast', estimatedCredits: 5, sortOrder: 120,
+    details: { reasoning: '定位为轻量资料归纳与日常问答。', speed: '定位为快速响应。', chinese: '已完成中文企业资料问答验证。', longContext: '当前未验证超长上下文上限。', bestFor: '高频查询、摘要、分类整理和简短内容。' },
+  },
+  {
+    id: 'claude-sonnet-46', providerModelId: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6',
+    description: '兼顾推理质量、响应速度和使用成本，适合企业日常分析、方案撰写、长资料总结和复杂知识问答。',
+    recommended: true, tier: 'recommended', estimatedCredits: 12, sortOrder: 121,
+    details: { reasoning: '定位为推理质量与效率均衡。', speed: '定位为稳健响应。', chinese: '已完成中文企业资料分析验证。', longContext: '当前未验证超长上下文上限。', bestFor: '日常分析、方案撰写、长资料总结和复杂问答。' },
+  },
+  {
+    id: 'claude-opus-46', providerModelId: 'claude-opus-4-6', displayName: 'Claude Opus 4.6',
+    description: '高阶分析模型，适合复杂问题拆解、多资料比较、严谨方案设计和管理决策辅助。',
+    recommended: false, tier: 'advanced', estimatedCredits: 18, sortOrder: 122,
+    details: { reasoning: '定位为复杂问题拆解与严谨方案设计。', speed: '定位为分析深度优先。', chinese: '已完成中文专业资料输出验证。', longContext: '当前未验证超长上下文上限。', bestFor: '多资料比较、方案设计和管理决策辅助。' },
+  },
+  {
+    id: 'claude-opus-47', providerModelId: 'claude-opus-4-7', displayName: 'Claude Opus 4.7',
+    description: '面向复杂推理与长链条任务的高能力模型，适合经营分析、战略推演和高质量专业输出。',
+    recommended: false, tier: 'advanced', estimatedCredits: 22, sortOrder: 123,
+    details: { reasoning: '定位为复杂推理与长链条任务。', speed: '定位为深度处理优先。', chinese: '已完成中文经营分析验证。', longContext: '当前未验证超长上下文上限。', bestFor: '经营分析、战略推演和专业输出。' },
+  },
+  {
+    id: 'claude-opus-48', providerModelId: 'claude-opus-4-8', displayName: 'Claude Opus 4.8',
+    description: 'Claude 系列高阶旗舰模型，适合最复杂的企业分析、长资料综合、决策论证和高要求专业任务。',
+    recommended: false, tier: 'flagship', estimatedCredits: 26, sortOrder: 124,
+    details: { reasoning: '定位为高要求的复杂企业分析。', speed: '定位为优先保证推理与论证质量。', chinese: '已完成中文复杂资料验证。', longContext: '当前未验证超长上下文上限。', bestFor: '长资料综合、决策论证和高要求专业任务。' },
+  },
+];
+
+function verifiedClaudeModels(): ModelCatalogEntry[] {
+  const configured = Boolean(process.env.CLAUDE_API_KEY && process.env.CLAUDE_BASE_URL);
+  const verifiedIds = new Set(verifiedClaudeEntries.map((entry) => entry.providerModelId));
+  return verifiedClaudeEntries.map((entry) => {
+    const base = disabled(entry.id, entry.displayName, 'anthropic', entry.sortOrder);
+    return {
+      ...base,
+      description: entry.description,
+      iconKey: 'anthropic',
+      recommended: entry.recommended,
+      tier: entry.tier,
+      estimatedCredits: entry.estimatedCredits,
+      inputCreditRate: entry.estimatedCredits / 5,
+      outputCreditRate: entry.estimatedCredits / 5,
+      providerModelId: configured && verifiedIds.has(entry.providerModelId) ? entry.providerModelId : null,
+      enabled: configured && verifiedIds.has(entry.providerModelId),
+      supportsText: true,
+      supportsStreaming: true,
+      // Qikuku extracts documents and injects text into the shared RAG prompt.
+      // This is intentionally distinct from provider-native file upload.
+      supportsParsedDocument: true,
+      supportsVision: false,
+      supportsNativeFileInput: false,
+      supportsWebSearch: false,
+      supportsFileSearch: false,
+      supportsToolCalling: false,
+      allowedFileTypes: parsedDocumentTypes,
+      details: {
+        ...base.details,
+        ...entry.details,
+        vision: '当前统一 Provider 尚不发送图片内容，因此不支持会话图片输入。',
+        files: '支持企库库解析 PDF、DOCX、XLSX、TXT、MD、CSV、JSON 后注入文本；不支持模型原生文件输入。',
+        webSearch: '当前未配置并验证真实联网搜索，不能开启联网。',
+        tools: '当前未验证工具调用，不能启用。',
+        limitations: '企业事实仅以检索到的资料为准；资料不足时会明确说明。',
+      },
+      verification: configured && verifiedIds.has(entry.providerModelId) ? 'configured' : 'unverified',
+    };
+  });
+}
 
 type VerifiedGeminiEntry = Pick<ModelCatalogEntry, 'id' | 'displayName' | 'description' | 'recommended' | 'tier' | 'estimatedCredits' | 'sortOrder'> & {
   providerModelId: string;
@@ -314,7 +394,7 @@ function verifiedDeepSeekModels(): ModelCatalogEntry[] {
 }
 
 export function getServerModelCatalog(): ModelCatalogEntry[] {
-  return [...verifiedDeepSeekModels(), ...gptReferenceEntries, ...verifiedGeminiModels(), ...referenceEntries].sort((a, b) => a.sortOrder - b.sortOrder);
+  return [...verifiedDeepSeekModels(), ...gptReferenceEntries, ...verifiedGeminiModels(), ...verifiedClaudeModels(), ...referenceEntries].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function getEnabledModels() {
