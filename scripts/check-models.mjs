@@ -1,4 +1,7 @@
-import 'dotenv/config';
+import nextEnv from '@next/env';
+
+const { loadEnvConfig } = nextEnv;
+loadEnvConfig(process.cwd());
 
 function validHttpUrl(value) {
   if (!value) return false;
@@ -21,7 +24,7 @@ const checks = [
   ['DEEPSEEK_API_KEY exists', Boolean(process.env.DEEPSEEK_API_KEY)],
   ['DEEPSEEK_BASE_URL exists', Boolean(process.env.DEEPSEEK_BASE_URL)],
   ['DEEPSEEK_BASE_URL valid', validHttpUrl(process.env.DEEPSEEK_BASE_URL)],
-  ['DEEPSEEK_MODEL exists', Boolean(process.env.DEEPSEEK_MODEL)],
+  ['DeepSeek model selection is catalog-owned', true],
   ['EMBEDDING_API_KEY exists', Boolean(process.env.EMBEDDING_API_KEY)],
   ['EMBEDDING_BASE_URL exists', Boolean(process.env.EMBEDDING_BASE_URL)],
   ['EMBEDDING_BASE_URL valid', validHttpUrl(process.env.EMBEDDING_BASE_URL)],

@@ -9,7 +9,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 loadEnvConfig(process.cwd());
 const catalog = getServerModelCatalog();
-const requiredDisplayNames = ['MiniMax-M3', 'DeepSeek-V4-Pro', 'Kimi-K2.6', 'GLM-5.2', 'GPT-5.4', 'GPT-5.4 mini', 'GPT-5.5', 'GPT-5.6 Luna', 'GPT-5.6 Sol', 'GPT-5.6 Terra', 'Claude Sonnet 4.6', 'Gemini 3.1 Pro', 'Qwen3.6-27B'];
+const requiredDisplayNames = ['MiniMax-M3', 'DeepSeek V4 Flash', 'DeepSeek V4 Pro', 'Kimi-K2.6', 'GLM-5.2', 'GPT-5.4', 'GPT-5.4 mini', 'GPT-5.5', 'GPT-5.6 Luna', 'GPT-5.6 Sol', 'GPT-5.6 Terra', 'Claude Sonnet 4.6', 'Gemini 3.1 Pro', 'Qwen3.6-27B'];
 
 for (const displayName of requiredDisplayNames) assert(catalog.some((model) => model.displayName === displayName), `missing reference model: ${displayName}`);
 for (const model of getEnabledModels()) {
@@ -25,6 +25,15 @@ for (const model of gptEntries) {
   assert(model.enabled, `${model.id} must be enabled only after the recorded live validation`);
   assert(model.providerModelId?.startsWith('gpt-'), `${model.id} must use its verified upstream GPT model ID`);
   assert(model.supportsText && model.supportsStreaming && model.supportsParsedDocument, `${model.id} must retain its verified text, streaming and parsed-document capabilities`);
+  assert(!model.supportsVision && !model.supportsNativeFileInput && !model.supportsWebSearch && !model.supportsFileSearch && !model.supportsToolCalling, `${model.id} must not claim unverified provider capabilities`);
+}
+const deepSeekEntries = catalog.filter((entry) => entry.provider === 'deepseek');
+const expectedDeepSeekIds = ['deepseek-v4-flash', 'deepseek-v4-pro'];
+assert(deepSeekEntries.length === expectedDeepSeekIds.length, 'DeepSeek catalogue must contain exactly the two approved entries');
+assert(deepSeekEntries.every((entry) => expectedDeepSeekIds.includes(entry.id)), 'DeepSeek catalogue contains an unapproved model');
+for (const model of deepSeekEntries) {
+  assert(model.enabled && model.providerModelId === model.id, `${model.id} must use its verified exact provider model ID`);
+  assert(model.supportsText && model.supportsStreaming && model.supportsParsedDocument, `${model.id} must retain verified text, streaming and parsed-document capabilities`);
   assert(!model.supportsVision && !model.supportsNativeFileInput && !model.supportsWebSearch && !model.supportsFileSearch && !model.supportsToolCalling, `${model.id} must not claim unverified provider capabilities`);
 }
 

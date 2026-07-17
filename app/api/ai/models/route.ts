@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       id: 'language',
       title: '企业 AI 问答模型',
       description: '用于企业知识库问答与管理分析',
-      configured: Boolean(process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_BASE_URL && process.env.DEEPSEEK_MODEL),
+      configured: Boolean(process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_BASE_URL),
     },
     {
       id: 'openai',

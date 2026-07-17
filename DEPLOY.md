@@ -37,10 +37,9 @@ npm run dev
 # 数据库
 DATABASE_URL="file:./prisma/dev.db"
 
-# 语言模型 (DeepSeek)
+# DeepSeek 系列（共享凭据；模型由服务端目录按用户选择传入）
 DEEPSEEK_API_KEY=sk-xxx
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_BASE_URL=https://01yq888.com
 
 # 图片模型
 IMAGE_API_KEY=sk-xxx

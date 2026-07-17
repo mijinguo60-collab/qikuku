@@ -61,11 +61,12 @@ export function extractModelContent(data: unknown): string {
 }
 
 function getOptions(options: ChatCompletionOptions) {
-  const model = options.model || process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-  const apiKey = options.apiKey || process.env.DEEPSEEK_API_KEY || '';
-  const baseUrl = options.baseUrl || process.env.DEEPSEEK_BASE_URL || '';
-  if (!apiKey) throw new Error('模型 API Key 未配置，请设置 DEEPSEEK_API_KEY');
-  const url = buildOpenAiCompatibleEndpoint(baseUrl, '/chat/completions', '模型 API 地址未配置，请设置 DEEPSEEK_BASE_URL');
+  const model = options.model || '';
+  const apiKey = options.apiKey || '';
+  const baseUrl = options.baseUrl || '';
+  if (!model) throw new Error('模型 ID 未配置，请从可用模型目录中选择模型');
+  if (!apiKey) throw new Error('模型 API Key 未配置');
+  const url = buildOpenAiCompatibleEndpoint(baseUrl, '/chat/completions', '模型 API 地址未配置');
   return { model, apiKey, url };
 }
 

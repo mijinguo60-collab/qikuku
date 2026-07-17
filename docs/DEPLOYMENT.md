@@ -10,7 +10,6 @@
 | BLOB_READ_WRITE_TOKEN | Vercel Blob Store Token |
 | DEEPSEEK_API_KEY | DeepSeek API Key |
 | DEEPSEEK_BASE_URL | DeepSeek API 地址 |
-| DEEPSEEK_MODEL | 模型名称 |
 | EMBEDDING_API_KEY | Embedding API Key |
 | EMBEDDING_BASE_URL | Embedding API 地址 |
 | EMBEDDING_MODEL | Embedding 模型名 |

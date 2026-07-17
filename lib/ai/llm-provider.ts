@@ -24,12 +24,10 @@ export type LlmRequestOptions = ChatCompletionOptions & {
 const providerEnvironment: Record<RuntimeLlmProvider, {
   key: 'DEEPSEEK_API_KEY' | 'OPENAI_API_KEY';
   baseUrl: 'DEEPSEEK_BASE_URL' | 'OPENAI_BASE_URL';
-  model?: 'DEEPSEEK_MODEL';
-  defaultModel?: string;
   label: string;
 }> = {
   deepseek: {
-    key: 'DEEPSEEK_API_KEY', baseUrl: 'DEEPSEEK_BASE_URL', model: 'DEEPSEEK_MODEL', defaultModel: 'deepseek-chat', label: 'DeepSeek',
+    key: 'DEEPSEEK_API_KEY', baseUrl: 'DEEPSEEK_BASE_URL', label: 'DeepSeek',
   },
   // GPT stays disabled until the operator supplies an OpenAI-compatible
   // endpoint and the exact upstream model IDs pass the live verification.
@@ -46,7 +44,9 @@ export function getLlmConfig(provider: RuntimeLlmProvider = 'deepseek') {
   const environment = providerEnvironment[provider];
   const apiKey = process.env[environment.key] || '';
   const baseUrl = process.env[environment.baseUrl] || '';
-  const model = environment.model ? (process.env[environment.model] || environment.defaultModel || '') : '';
+  // Provider credentials are shared, but each request must choose a verified
+  // model from the server-owned catalogue.  Never fall back to a global model.
+  const model = '';
   const error = !baseUrl
     ? `${environment.label} API 地址未配置，请设置 ${environment.baseUrl}`
     : !apiKey

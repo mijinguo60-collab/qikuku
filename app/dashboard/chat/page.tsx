@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Bot, Brain, BrainCircuit, Check, ChevronDown, Copy, FileUp, Globe2, ImagePlus, Info, Lightbulb, Loader2, Search, Send, Sparkles, WandSparkles, X, Zap } from 'lucide-react';
+import { Bot, Brain, Check, ChevronDown, Copy, FileUp, Globe2, ImagePlus, Info, Lightbulb, Loader2, Search, Send, Sparkles, WandSparkles, X, Zap } from 'lucide-react';
 import ConversationHistory, { ConversationSummary } from '@/components/dashboard/ConversationHistory';
 import { useCreditBalance } from '@/hooks/useCreditBalance';
 
@@ -34,9 +34,18 @@ function OpenAiProviderMark({ className = '' }: { className?: string }) {
   </svg>;
 }
 
+function DeepSeekProviderMark({ className = '' }: { className?: string }) {
+  // Locally drawn whale mark for the DeepSeek provider.  It avoids generic
+  // initials and third-party assets while remaining crisp at picker sizes.
+  return <svg viewBox="0 0 24 24" aria-label="DeepSeek" role="img" className={`fill-current ${className}`}>
+    <path d="M4.25 13.1c0-4.45 3.56-7.73 8.35-7.73 2.18 0 4.08.66 5.44 1.9.77.7 1.28 1.5 1.6 2.3l1.72-.88.1 2.74-2.36 1.1c-.55 3.94-3.8 6.3-7.94 6.3-2.35 0-4.28-.67-5.69-1.98-1-.93-1.22-2.44-1.22-3.75Zm5.15-1.9a1.05 1.05 0 1 0 0-2.1 1.05 1.05 0 0 0 0 2.1Zm4.12 4.43c-1.62.76-3.68.49-4.92-.58-.27-.23-.3-.64-.06-.91.23-.27.64-.3.91-.06.83.71 2.3.9 3.5.34.33-.15.71-.01.86.32.15.32.01.71-.29.86Z" />
+    <path d="M7.92 6.5c-.18-1.56.58-2.86 1.86-3.47.23-.11.51.06.51.31 0 .83.29 1.43.89 1.86-.9.27-1.68.71-2.3 1.3-.4.02-.75.01-.96 0Z" opacity=".8" />
+  </svg>;
+}
+
 function ProviderIcon({ provider, className = '' }: { provider: string; className?: string }) {
   const props = { className: `w-4 h-4 ${className}` };
-  if (provider === 'deepseek') return <BrainCircuit {...props} />;
+  if (provider === 'deepseek') return <DeepSeekProviderMark className={props.className} />;
   if (provider === 'openai') return <OpenAiProviderMark className={props.className} />;
   if (provider === 'anthropic') return <WandSparkles {...props} />;
   if (provider === 'google') return <Sparkles {...props} />;

@@ -209,9 +209,9 @@ for (const s of skills) {
   insertSkill.run(uuidv4(), companyId, s.name, s.category, s.description, s.sourceInspiration, s.framework, s.diagnosticQuestions, s.requiredKnowledgeTypes, s.systemPrompt, s.outputSchema, s.suitableQuestions, 1, 1, now, now);
 }
 
-// Create demo API credentials (placeholder)
-db.prepare('INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-  .run(uuidv4(), companyId, 'deepseek', null, 'https://api.deepseek.com', 'deepseek-chat', now, now);
+// Language models are centrally configured from server-only environment
+// variables and selected through the verified catalogue.  Do not seed a
+// per-company DeepSeek endpoint or a misleading global default model.
 db.prepare('INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
   .run(uuidv4(), companyId, 'image', null, null, null, now, now);
 db.prepare('INSERT INTO "ApiCredential" (id, "companyId", provider, "encryptedKey", "baseUrl", model, "createdAt", "updatedAt") VALUES (?, ?, ?, ?, ?, ?, ?, ?)')

@@ -176,7 +176,6 @@ const gptReferenceEntries: ModelCatalogEntry[] = [
 
 const referenceEntries: ModelCatalogEntry[] = [
   ['minimax-m3', 'MiniMax-M3', 'minimax'], ['minimax-m27', 'MiniMax-M2.7', 'minimax'],
-  ['deepseek-v4-pro', 'DeepSeek-V4-Pro', 'deepseek'],
   ['kimi-k26', 'Kimi-K2.6', 'kimi'], ['kimi-k25', 'Kimi-K2.5', 'kimi'],
   ['glm-52', 'GLM-5.2', 'glm'], ['glm-51', 'GLM-5.1', 'glm'],
   ['claude-opus-48', 'Claude Opus 4.8', 'anthropic'], ['claude-opus-47', 'Claude Opus 4.7', 'anthropic'],
@@ -186,29 +185,21 @@ const referenceEntries: ModelCatalogEntry[] = [
   ['qwen-36-27b', 'Qwen3.6-27B', 'alibaba'],
 ].map(([id, displayName, provider], index) => disabled(id, displayName, provider as ModelProvider, 100 + index));
 
-function configuredDeepSeekModels(): ModelCatalogEntry[] {
+function verifiedDeepSeekModels(): ModelCatalogEntry[] {
   const configured = Boolean(process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_BASE_URL);
-  if (!configured) return [disabled('deepseek-configured', 'DeepSeek（当前通道）', 'deepseek', 1)];
-
-  // This allow-list is deliberately explicit.  An ID is exposed only after it
-  // has been listed by the configured upstream and passed a minimal real call.
-  // Operators can narrow the local catalogue without a code release.
-  const configuredDefault = process.env.DEEPSEEK_MODEL?.trim() || '';
-  // On 2026-07-16 the configured upstream returned exactly these two IDs and
-  // both passed a minimal completion call.  An operator may override this with
-  // DEEPSEEK_VERIFIED_MODEL_IDS after changing the upstream channel.
-  const verifiedIds = new Set((process.env.DEEPSEEK_VERIFIED_MODEL_IDS
-    || (configuredDefault === 'deepseek-v4-flash' ? 'deepseek-v4-flash,deepseek-v4-pro' : configuredDefault))
-    .split(',').map((value) => value.trim()).filter(Boolean));
+  // These are the only two DeepSeek IDs listed by the approved channel and
+  // verified through text and SSE requests.  Selection always supplies the
+  // exact providerModelId; no DEEPSEEK_MODEL environment fallback exists.
+  const verifiedIds = new Set(['deepseek-v4-flash', 'deepseek-v4-pro']);
   const entries = [
     {
       id: 'deepseek-v4-flash', providerModelId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash',
-      description: '快速企业资料问答。适合日常制度、流程与产品查询；支持流式输出和已解析文档上下文。',
+      description: '快速高效的企业知识问答，适合高频资料查询、内容总结、制度检索和日常员工问答。',
       recommended: true, tier: 'fast' as const, estimatedCredits: 5, sortOrder: 1,
     },
     {
       id: 'deepseek-v4-pro', providerModelId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro',
-      description: '面向复杂企业资料分析与多步骤梳理；支持流式输出和已解析文档上下文，响应通常较慢。',
+      description: '面向复杂企业问题的进阶分析，适合多资料比较、经营问题拆解和结构化方案。',
       recommended: false, tier: 'advanced' as const, estimatedCredits: 12, sortOrder: 2,
     },
   ];
@@ -217,7 +208,8 @@ function configuredDeepSeekModels(): ModelCatalogEntry[] {
     ...entry,
     provider: 'deepseek',
     iconKey: 'deepseek',
-    enabled: verifiedIds.has(entry.providerModelId),
+    providerModelId: configured && verifiedIds.has(entry.providerModelId) ? entry.providerModelId : null,
+    enabled: configured && verifiedIds.has(entry.providerModelId),
     inputCreditRate: 1,
     outputCreditRate: 1,
     supportsText: true,
@@ -236,23 +228,23 @@ function configuredDeepSeekModels(): ModelCatalogEntry[] {
     maxFileSize: null,
     fallbackModelId: null,
     details: {
-      reasoning: entry.id.endsWith('pro') ? '适合多步骤资料归纳与分析；以实际企业资料为依据。' : '适合日常企业资料查询与短流程梳理。',
-      speed: entry.id.endsWith('pro') ? '偏稳健，响应通常较慢。' : '偏快速，适合高频问答。',
-      chinese: '已在当前企业中文知识库问答链路中验证。',
-      longContext: '上下文窗口由当前通道决定，系统会优先注入检索到的企业资料。',
+      reasoning: entry.id.endsWith('pro') ? '适合跨资料比较、问题拆解和多步骤分析；企业事实仍以检索资料为准。' : '适合日常企业资料查询、内容总结与短流程梳理。',
+      speed: entry.id.endsWith('pro') ? '侧重分析深度，响应通常较稳健。' : '侧重快速响应，适合高频员工问答。',
+      chinese: entry.id.endsWith('pro') ? '适合中文经营分析、方案结构化与管理讨论。' : '适合中文制度检索、资料总结和日常工作问答。',
+      longContext: entry.id.endsWith('pro') ? '适合在检索到的多段企业资料之间进行比较与归纳。' : '适合围绕当前检索到的企业资料快速作答。',
       vision: '当前通道未验证图片识别，不支持会话图片输入。',
       files: '支持企库库先解析 PDF、DOCX、XLSX、TXT、MD、CSV、JSON 后注入文本；不支持模型原生文件。',
       webSearch: '当前未配置真实联网搜索，不能开启联网。',
       tools: '当前未验证工具调用，不能启用。',
-      bestFor: entry.id.endsWith('pro') ? '复杂制度梳理、跨资料对比和分析型 Skill。' : '制度、流程、产品等日常企业知识库问答。',
+      bestFor: entry.id.endsWith('pro') ? '经营问题拆解、多资料对比、结构化方案和分析型 Skill。' : '制度检索、流程查询、内容总结和高频企业知识库问答。',
       limitations: '企业事实仅以检索到的资料为准；资料不足时会明确说明。',
     },
-    verification: verifiedIds.has(entry.providerModelId) ? 'configured' : 'unverified',
+    verification: configured && verifiedIds.has(entry.providerModelId) ? 'configured' : 'unverified',
   }));
 }
 
 export function getServerModelCatalog(): ModelCatalogEntry[] {
-  return [...configuredDeepSeekModels(), ...gptReferenceEntries, ...referenceEntries].sort((a, b) => a.sortOrder - b.sortOrder);
+  return [...verifiedDeepSeekModels(), ...gptReferenceEntries, ...referenceEntries].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 export function getEnabledModels() {
@@ -260,8 +252,8 @@ export function getEnabledModels() {
 }
 
 export function getEnabledModel(modelId: string | undefined | null) {
-  const requested = modelId || 'deepseek-configured';
-  return getEnabledModels().find((model) => model.id === requested) || null;
+  if (!modelId) return null;
+  return getEnabledModels().find((model) => model.id === modelId) || null;
 }
 
 export function toPublicModel(model: ModelCatalogEntry) {
