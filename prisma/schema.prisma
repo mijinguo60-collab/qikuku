@@ -6,6 +6,52 @@ datasource db {
   provider = "postgresql"
 }
 
+enum MembershipBillingPeriodStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+  INVALIDATED
+}
+
+enum CompanyEntitlementType {
+  ALL_MODELS_PERMANENT
+}
+
+enum CompanyEntitlementSourceType {
+  MONTHLY_MILESTONE
+  ANNUAL_PURCHASE
+  SUPER_AGENT_SELF_COMPANY
+  ADMIN_GRANT
+  LEGACY_MIGRATION
+}
+
+enum MembershipPointGrantRunStatus {
+  PENDING
+  PROCESSING
+  GRANTED
+  FAILED
+  SKIPPED
+  REVERSED
+}
+
+enum CreditGrantType {
+  WELCOME
+  MEMBERSHIP
+  RECHARGE_BASE
+  RECHARGE_BONUS
+  AGENT_DEMO
+  AGENT_LEAD
+  MANUAL_ADJUSTMENT
+  LEGACY_UNKNOWN
+}
+
+enum MembershipBillingCycle {
+  MONTHLY
+  YEARLY
+}
+
 model User {
   id           String         @id @default(uuid())
   name         String
@@ -57,6 +103,9 @@ model Company {
   aiCallLogs     AiCallLog[]
   subscriptions  Subscription[]
   creditAccount  CreditAccount?
+  membershipBillingPeriods MembershipBillingPeriod[]
+  entitlementGrants        CompanyEntitlementGrant[]
+  membershipPointGrantRuns MembershipPointGrantRun[]
   creditGrants   CreditGrant[]
   creditLedgers  CreditLedger[]
   rechargeOrders RechargeOrder[]
@@ -333,6 +382,9 @@ model Subscription {
   @@index([companyId, status])
   @@index([expiresAt])
 }
+  billingPeriods MembershipBillingPeriod[]
+  pointGrantRuns MembershipPointGrantRun[]
+
 
 model CreditAccount {
   id               String   @id @default(uuid())
@@ -353,14 +405,19 @@ model CreditGrant {
   originalAmount  Int
   remainingAmount Int
   expiresAt       DateTime?
+  grantType               CreditGrantType?
   createdAt       DateTime       @default(now())
   company         Company        @relation(fields: [companyId], references: [id])
   ledgers         CreditLedger[]
   @@index([companyId, expiresAt])
   @@index([companyId, sourceType])
 }
+  membershipPointGrantRun MembershipPointGrantRun?
+  ledgerAllocations       CreditLedgerAllocation[]
+
 
 model CreditLedger {
+  @@index([companyId, grantType])
   id             String       @id @default(uuid())
   companyId      String
   userId         String?
@@ -381,6 +438,8 @@ model CreditLedger {
   @@index([companyId, createdAt])
   @@index([companyId, featureType])
   @@index([requestId])
+  allocations    CreditLedgerAllocation[]
+
 }
 
 model RechargeOrder {
@@ -537,4 +596,111 @@ model PaymentOrder {
   @@index([companyId, status])
   @@index([createdAt])
   @@index([expiresAt])
+}
+  membershipBillingPeriods MembershipBillingPeriod[]
+
+
+model MembershipBillingPeriod {
+  id                 String                        @id @default(uuid())
+  companyId          String
+  subscriptionId     String?
+  paymentOrderId     String?
+  provider           String
+  externalPeriodKey  String
+  planCode           String
+  billingCycle       MembershipBillingCycle
+  periodStart        DateTime
+  periodEnd          DateTime
+  status             MembershipBillingPeriodStatus @default(PENDING)
+  paymentCompletedAt DateTime?
+  refundedAt         DateTime?
+  cancelledAt        DateTime?
+  invalidatedAt      DateTime?
+  invalidationReason String?
+  metadataJson       Json?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+
+  company        Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  subscription   Subscription?             @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  paymentOrder   PaymentOrder?             @relation(fields: [paymentOrderId], references: [id], onDelete: SetNull)
+  pointGrantRuns MembershipPointGrantRun[]
+
+  @@unique([provider, externalPeriodKey])
+  @@index([companyId, periodStart, periodEnd])
+  @@index([companyId, billingCycle, status])
+  @@index([subscriptionId, periodStart])
+  @@index([paymentOrderId])
+}
+
+model CompanyEntitlementGrant {
+  id               String                       @id @default(uuid())
+  companyId        String
+  entitlementType  CompanyEntitlementType
+  sourceType       CompanyEntitlementSourceType
+  sourceId         String
+  sourceOrderId    String?
+  grantedAt        DateTime                     @default(now())
+  effectiveAt      DateTime?
+  revokedAt        DateTime?
+  revocationReason String?
+  metadataJson     Json?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, entitlementType, sourceType, sourceId])
+  @@index([companyId, entitlementType, revokedAt])
+  @@index([sourceOrderId])
+  @@index([sourceType, sourceId])
+}
+
+model MembershipPointGrantRun {
+  id               String                        @id @default(uuid())
+  companyId        String
+  subscriptionId   String
+  billingPeriodId  String?
+  planCode         String
+  grantPeriodKey   String
+  grantPeriodStart DateTime
+  grantPeriodEnd   DateTime
+  scheduledAt      DateTime
+  grantedAt        DateTime?
+  points           Int
+  status           MembershipPointGrantRunStatus @default(PENDING)
+  creditGrantId    String?                       @unique
+  idempotencyKey   String                        @unique
+  attemptCount     Int                           @default(0)
+  lastAttemptAt    DateTime?
+  failureReason    String?
+  metadataJson     Json?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  company       Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  subscription  Subscription             @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  billingPeriod MembershipBillingPeriod? @relation(fields: [billingPeriodId], references: [id], onDelete: SetNull)
+  creditGrant   CreditGrant?             @relation(fields: [creditGrantId], references: [id], onDelete: SetNull)
+
+  @@unique([subscriptionId, grantPeriodKey])
+  @@index([companyId, status, scheduledAt])
+  @@index([billingPeriodId])
+  @@index([subscriptionId, grantPeriodStart])
+  @@index([status, scheduledAt])
+}
+
+model CreditLedgerAllocation {
+  id            String   @id @default(uuid())
+  ledgerId      String
+  creditGrantId String
+  amount        Int
+  createdAt     DateTime @default(now())
+
+  ledger      CreditLedger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  creditGrant CreditGrant  @relation(fields: [creditGrantId], references: [id], onDelete: Restrict)
+
+  @@unique([ledgerId, creditGrantId])
+  @@index([ledgerId])
+  @@index([creditGrantId])
 }

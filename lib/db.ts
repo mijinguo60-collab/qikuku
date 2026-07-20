@@ -2,7 +2,7 @@
  * Database adapter: PostgreSQL (Neon/Vercel) or SQLite (local dev)
  * Returns a unified interface supporting .prepare().get()/.all()/.run()
  */
-import { Pool } from 'pg';
+import { Pool, types as pgTypes } from 'pg';
 import path from 'path';
 
 let db: any = undefined;
@@ -11,6 +11,15 @@ const REQUIRE_POSTGRES = process.env.DATABASE_REQUIRE_POSTGRES === 'true';
 const PG_POOL_MAX = 5;
 const PG_CONNECTION_TIMEOUT_MS = 10_000;
 const PG_IDLE_TIMEOUT_MS = 30_000;
+
+const PG_TIMESTAMP_WITHOUT_TIMEZONE_OID = 1114;
+
+// Prisma DateTime 在 PostgreSQL 中使用不带时区的 timestamp。
+// 自定义 pg 适配器必须按 UTC 解析，避免受运行机器本地时区影响。
+pgTypes.setTypeParser(PG_TIMESTAMP_WITHOUT_TIMEZONE_OID, (value) => {
+  const isoLike = value.includes('T') ? value : value.replace(' ', 'T');
+  return new Date(`${isoLike}Z`);
+});
 
 function toPgParams(sql: string): string {
   let n = 0;
