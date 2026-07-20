@@ -57,6 +57,7 @@ model User {
   name         String
   email        String?        @unique
   phone        String?        @unique
+  phoneE164    String?        @unique
   passwordHash String?
   avatarUrl    String?
   phoneVerifiedAt DateTime?
@@ -367,24 +368,24 @@ model Plan {
 }
 
 model Subscription {
-  id           String   @id @default(uuid())
-  companyId    String
-  planId       String
-  billingCycle String   @default("trial")
-  status       String   @default("trialing")
-  startedAt    DateTime @default(now())
-  expiresAt    DateTime?
-  autoRenew    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  company      Company  @relation(fields: [companyId], references: [id])
-  plan         Plan     @relation(fields: [planId], references: [id])
-  @@index([companyId, status])
-  @@index([expiresAt])
-}
+  id             String                    @id @default(uuid())
+  companyId      String
+  planId         String
+  billingCycle   String                    @default("trial")
+  status         String                    @default("trialing")
+  startedAt      DateTime                  @default(now())
+  expiresAt      DateTime?
+  autoRenew      Boolean                   @default(false)
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  company        Company                   @relation(fields: [companyId], references: [id])
+  plan           Plan                      @relation(fields: [planId], references: [id])
   billingPeriods MembershipBillingPeriod[]
   pointGrantRuns MembershipPointGrantRun[]
 
+  @@index([companyId, status])
+  @@index([expiresAt])
+}
 
 model CreditAccount {
   id               String   @id @default(uuid())
@@ -398,27 +399,27 @@ model CreditAccount {
 }
 
 model CreditGrant {
-  id              String         @id @default(uuid())
-  companyId       String
-  sourceType      String
-  sourceId        String?
-  originalAmount  Int
-  remainingAmount Int
-  expiresAt       DateTime?
+  id                      String                   @id @default(uuid())
+  companyId               String
+  sourceType              String
+  sourceId                String?
   grantType               CreditGrantType?
-  createdAt       DateTime       @default(now())
-  company         Company        @relation(fields: [companyId], references: [id])
-  ledgers         CreditLedger[]
-  @@index([companyId, expiresAt])
-  @@index([companyId, sourceType])
-}
+  originalAmount          Int
+  remainingAmount         Int
+  expiresAt               DateTime?
+  createdAt               DateTime                 @default(now())
+  company                 Company                  @relation(fields: [companyId], references: [id])
+  ledgers                 CreditLedger[]
   membershipPointGrantRun MembershipPointGrantRun?
   ledgerAllocations       CreditLedgerAllocation[]
 
+  @@index([companyId, expiresAt])
+  @@index([companyId, sourceType])
+  @@index([companyId, grantType])
+}
 
 model CreditLedger {
-  @@index([companyId, grantType])
-  id             String       @id @default(uuid())
+  id             String                   @id @default(uuid())
   companyId      String
   userId         String?
   grantId        String?
@@ -428,18 +429,18 @@ model CreditLedger {
   balanceBefore  Int
   balanceAfter   Int
   requestId      String?
-  idempotencyKey String       @unique
+  idempotencyKey String                   @unique
   description    String?
   metadataJson   String?
-  createdAt      DateTime     @default(now())
-  company        Company      @relation(fields: [companyId], references: [id])
-  user           User?        @relation(fields: [userId], references: [id])
-  grant          CreditGrant? @relation(fields: [grantId], references: [id])
+  createdAt      DateTime                 @default(now())
+  company        Company                  @relation(fields: [companyId], references: [id])
+  user           User?                    @relation(fields: [userId], references: [id])
+  grant          CreditGrant?             @relation(fields: [grantId], references: [id])
+  allocations    CreditLedgerAllocation[]
+
   @@index([companyId, createdAt])
   @@index([companyId, featureType])
   @@index([requestId])
-  allocations    CreditLedgerAllocation[]
-
 }
 
 model RechargeOrder {
@@ -543,6 +544,32 @@ model SmsVerification {
   @@index([sendIp,createdAt])
 }
 
+model SmsVerificationChallenge {
+  id                 String    @id @default(uuid())
+  phoneHash          String
+  phoneLast4         String
+  purpose            String
+  codeHash           String
+  expiresAt          DateTime
+  consumedAt         DateTime?
+  attempts           Int       @default(0)
+  maxAttempts        Int
+  sendStatus         String
+  providerRequestId  String?
+  providerStatusCode String?
+  failureCategory    String?
+  requestIpHash      String
+  userAgentHash      String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([phoneHash, purpose, createdAt])
+  @@index([expiresAt])
+  @@index([consumedAt])
+  @@index([providerRequestId])
+  @@index([requestIpHash, createdAt])
+}
+
 model CompanyInvitation {
   id String @id @default(uuid())
   companyId String
@@ -564,41 +591,41 @@ model CompanyInvitation {
 }
 
 model PaymentOrder {
-  id                    String   @id @default(uuid())
-  orderNo               String   @unique
-  companyId             String
-  userId                String?
-  orderType             String
-  provider              String
-  status                String   @default("pending")
-  amountCents           Int
-  currency              String   @default("CNY")
-  subject               String
-  description           String?
-  planCode              String?
-  billingCycle          String?
-  rechargeOptionId      String?
-  baseCredits           Int      @default(0)
-  bonusCredits          Int      @default(0)
-  firstRechargeBonus    Int      @default(0)
-  providerOrderNo       String?
-  providerTransactionId String?  @unique
-  qrCodeUrl             String?
-  paymentPayloadJson    String?
-  paidAt                DateTime?
-  expiresAt             DateTime?
-  closedAt              DateTime?
-  refundedAt            DateTime?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  company               Company  @relation(fields: [companyId], references: [id])
-  user                  User?    @relation(fields: [userId], references: [id])
+  id                       String                    @id @default(uuid())
+  orderNo                  String                    @unique
+  companyId                String
+  userId                   String?
+  orderType                String
+  provider                 String
+  status                   String                    @default("pending")
+  amountCents              Int
+  currency                 String                    @default("CNY")
+  subject                  String
+  description              String?
+  planCode                 String?
+  billingCycle             String?
+  rechargeOptionId         String?
+  baseCredits              Int                       @default(0)
+  bonusCredits             Int                       @default(0)
+  firstRechargeBonus       Int                       @default(0)
+  providerOrderNo          String?
+  providerTransactionId    String?                   @unique
+  qrCodeUrl                String?
+  paymentPayloadJson       String?
+  paidAt                   DateTime?
+  expiresAt                DateTime?
+  closedAt                 DateTime?
+  refundedAt               DateTime?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  company                  Company                   @relation(fields: [companyId], references: [id])
+  user                     User?                     @relation(fields: [userId], references: [id])
+  membershipBillingPeriods MembershipBillingPeriod[]
+
   @@index([companyId, status])
   @@index([createdAt])
   @@index([expiresAt])
 }
-  membershipBillingPeriods MembershipBillingPeriod[]
-
 
 model MembershipBillingPeriod {
   id                 String                        @id @default(uuid())

@@ -18,6 +18,8 @@
     "check:rag": "node scripts/check-rag.mjs",
     "check:ai": "node scripts/check-ai.mjs",
     "test:unified-chat": "tsx scripts/test-unified-chat-policy.ts",
+    "test:sms-auth": "tsx scripts/test-sms-auth.ts",
+    "test:sms-auth:db": "SMS_AUTH_DB_ROLLBACK_TEST=1 NODE_OPTIONS='--no-network-family-autoselection --dns-result-order=ipv4first' tsx scripts/test-sms-auth-db-rollback.ts",
     "check:image": "node scripts/check-image.mjs",
     "check:models": "node scripts/check-models.mjs",
     "check:billing": "node scripts/check-billing.mjs && node scripts/check-billing-readonly.mjs",

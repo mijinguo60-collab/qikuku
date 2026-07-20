@@ -1,0 +1,160 @@
+import { v4 as uuid } from 'uuid';
+import { getDb } from '@/lib/db';
+import { writeAuditLog } from '@/lib/audit-log';
+import { getSmsProvider } from './index';
+import { getSmsSecurityConfig, hashPhone, hashRequestIp, hashUserAgent, hashVerificationCode, maskPhone, phoneLast4, SMS_PURPOSE_LOGIN, verificationCodeMatches } from './security';
+import { SmsProviderError, type SmsProvider } from './types';
+
+type RequestMetadata = { ip: string; userAgent: string };
+type ChallengeRow = { id: string; codeHash: string; expiresAt: Date | string; attempts: number; maxAttempts: number };
+type LoginUser = { id: string; name: string; email: string | null; role: string; companyId: string | null; status: string };
+
+export type SmsSendCodeResult = { ok: true; maskedPhone: string } | { ok: false; kind: 'configuration' | 'rate_limited' | 'send_failed' };
+export type SmsVerifyCodeResult = { ok: true; user: LoginUser } | { ok: false; kind: 'invalid_code' | 'login_rejected' | 'configuration' };
+
+export type SmsAuthServiceDependencies = {
+  db?: any;
+  provider?: SmsProvider;
+  auditWriter?: typeof writeAuditLog;
+};
+
+function asDate(value: Date | string) { return value instanceof Date ? value : new Date(value); }
+
+async function lockPhone(tx: any, phoneHash: string) {
+  // PostgreSQL serializes same-number requests across server instances.
+  // Lock failure must abort the transaction rather than silently disabling
+  // concurrency protection.
+  await tx
+    .prepare(`SELECT pg_advisory_xact_lock(hashtext(?))`)
+    .get(`sms-login:${phoneHash}`);
+}
+
+async function audit(
+  action: string,
+  values: { phoneHash: string; phoneLast4: string; ipHash: string; userAgentHash: string; providerRequestId?: string; failureCategory?: string; userId?: string; companyId?: string | null },
+  dependencies: SmsAuthServiceDependencies,
+) {
+  const auditWriter = dependencies.auditWriter ?? writeAuditLog;
+
+  await auditWriter({
+    companyId: values.companyId || '', userId: values.userId, action,
+    detail: { phoneHash: values.phoneHash, phoneLast4: values.phoneLast4, ipHash: values.ipHash, userAgentHash: values.userAgentHash, providerRequestId: values.providerRequestId, failureCategory: values.failureCategory, provider: 'tencent_sms' },
+  });
+}
+
+export async function requestSmsLoginCode(
+  phoneE164: string,
+  metadata: RequestMetadata,
+  code: string,
+  dependencies: SmsAuthServiceDependencies = {},
+): Promise<SmsSendCodeResult> {
+  const config = getSmsSecurityConfig();
+  if (!config) return { ok: false, kind: 'configuration' };
+  const db = dependencies.db ?? getDb();
+  const phoneHash = hashPhone(config.pepper, phoneE164);
+  const ipHash = hashRequestIp(config.pepper, metadata.ip);
+  const userAgentHash = hashUserAgent(config.pepper, metadata.userAgent || 'unknown');
+  const now = new Date();
+  const challengeId = uuid();
+  const auditValues = { phoneHash, phoneLast4: phoneLast4(phoneE164), ipHash, userAgentHash };
+
+  try {
+    const allowed = await db.transactionAsync(async (tx: any) => {
+      await lockPhone(tx, phoneHash);
+      const cooldownAt = new Date(now.getTime() - config.resendCooldownSeconds * 1000).toISOString();
+      const hourAt = new Date(now.getTime() - 3600_000).toISOString();
+      const dayAt = new Date(now.getTime() - 86_400_000).toISOString();
+      // A PostgreSQL transaction uses one client connection. Run these checks
+      // sequentially instead of issuing concurrent queries on the same client.
+      const cooldown = await tx
+        .prepare(`SELECT id FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">? ORDER BY "createdAt" DESC LIMIT 1`)
+        .get(phoneHash, SMS_PURPOSE_LOGIN, cooldownAt);
+
+      const phoneHourly = await tx
+        .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">?`)
+        .get(phoneHash, SMS_PURPOSE_LOGIN, hourAt);
+
+      const phoneDaily = await tx
+        .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">?`)
+        .get(phoneHash, SMS_PURPOSE_LOGIN, dayAt);
+
+      const ipHourly = await tx
+        .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "requestIpHash"=? AND "createdAt">?`)
+        .get(ipHash, hourAt);
+      if (cooldown || Number(phoneHourly?.count || 0) >= config.phoneHourlyLimit || Number(phoneDaily?.count || 0) >= config.phoneDailyLimit || Number(ipHourly?.count || 0) >= config.ipHourlyLimit) return false;
+      await tx.prepare(`INSERT INTO "SmsVerificationChallenge" (id,"phoneHash","phoneLast4",purpose,"codeHash","expiresAt",attempts,"maxAttempts","sendStatus","requestIpHash","userAgentHash","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(challengeId, phoneHash, phoneLast4(phoneE164), SMS_PURPOSE_LOGIN, hashVerificationCode(config.pepper, phoneE164, SMS_PURPOSE_LOGIN, code), new Date(now.getTime() + config.ttlSeconds * 1000).toISOString(), 0, config.maxVerifyAttempts, 'PENDING', ipHash, userAgentHash, now.toISOString(), now.toISOString());
+      return true;
+    });
+    if (!allowed) {
+      await audit('SMS_CODE_REQUESTED', { ...auditValues, failureCategory: 'rate_limited' }, dependencies);
+      return { ok: false, kind: 'rate_limited' };
+    }
+  } catch { return { ok: false, kind: 'send_failed' }; }
+
+  await audit('SMS_CODE_REQUESTED', auditValues, dependencies);
+  try {
+    const sent = await (dependencies.provider ?? getSmsProvider()).sendVerificationCode({ phoneE164, code });
+    await db.transactionAsync(async (tx: any) => {
+      await lockPhone(tx, phoneHash);
+      const update = await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='SENT',"providerRequestId"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(sent.providerRequestId || null, sent.providerStatusCode || 'Ok', new Date().toISOString(), challengeId);
+      if (update.changes !== 1) throw new Error('sms_challenge_state_changed');
+      await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "consumedAt"=?,"updatedAt"=? WHERE "phoneHash"=? AND purpose=? AND id<>? AND "sendStatus"='SENT' AND "consumedAt" IS NULL`).run(new Date().toISOString(), new Date().toISOString(), phoneHash, SMS_PURPOSE_LOGIN, challengeId);
+    });
+    await audit('SMS_CODE_SENT', { ...auditValues, providerRequestId: sent.providerRequestId }, dependencies);
+    return { ok: true, maskedPhone: maskPhone(phoneE164) };
+  } catch (error) {
+    const failureCategory = error instanceof SmsProviderError ? error.category : 'unknown';
+    await db.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='FAILED',"failureCategory"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(failureCategory, error instanceof SmsProviderError ? error.providerStatusCode || null : null, new Date().toISOString(), challengeId).catch(() => {});
+    await audit('SMS_CODE_SEND_FAILED', { ...auditValues, failureCategory }, dependencies);
+    if (error instanceof SmsProviderError && error.category === 'configuration') return { ok: false, kind: 'configuration' };
+    if (error instanceof SmsProviderError && error.category === 'rate_limited') return { ok: false, kind: 'rate_limited' };
+    return { ok: false, kind: 'send_failed' };
+  }
+}
+
+export async function verifySmsLoginCode(
+  phoneE164: string,
+  code: string,
+  metadata: RequestMetadata,
+  dependencies: SmsAuthServiceDependencies = {},
+): Promise<SmsVerifyCodeResult> {
+  const config = getSmsSecurityConfig();
+  if (!config) return { ok: false, kind: 'configuration' };
+  const db = dependencies.db ?? getDb();
+  const phoneHash = hashPhone(config.pepper, phoneE164);
+  const ipHash = hashRequestIp(config.pepper, metadata.ip);
+  const userAgentHash = hashUserAgent(config.pepper, metadata.userAgent || 'unknown');
+  const auditValues = { phoneHash, phoneLast4: phoneLast4(phoneE164), ipHash, userAgentHash };
+  const result = await db.transactionAsync(async (tx: any): Promise<SmsVerifyCodeResult> => {
+    await lockPhone(tx, phoneHash);
+    const challenge = await tx.prepare(`SELECT id,"codeHash","expiresAt",attempts,"maxAttempts" FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "sendStatus"='SENT' AND "consumedAt" IS NULL ORDER BY "createdAt" DESC LIMIT 1 FOR UPDATE`).get(phoneHash, SMS_PURPOSE_LOGIN) as ChallengeRow | null;
+    if (!challenge || asDate(challenge.expiresAt).getTime() <= Date.now() || Number(challenge.attempts) >= Number(challenge.maxAttempts)) return { ok: false, kind: 'invalid_code' };
+    if (!verificationCodeMatches(challenge.codeHash, hashVerificationCode(config.pepper, phoneE164, SMS_PURPOSE_LOGIN, code))) {
+      const attempts = Number(challenge.attempts) + 1;
+      await tx.prepare(`UPDATE "SmsVerificationChallenge" SET attempts=?,"consumedAt"=CASE WHEN ?>="maxAttempts" THEN ? ELSE "consumedAt" END,"updatedAt"=? WHERE id=? AND "consumedAt" IS NULL`).run(attempts, attempts, new Date().toISOString(), new Date().toISOString(), challenge.id);
+      return { ok: false, kind: 'invalid_code' };
+    }
+    const consumed = await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "consumedAt"=?,"updatedAt"=? WHERE id=? AND "consumedAt" IS NULL AND "sendStatus"='SENT'`).run(new Date().toISOString(), new Date().toISOString(), challenge.id);
+    if (consumed.changes !== 1) return { ok: false, kind: 'invalid_code' };
+    let user = await tx.prepare(`SELECT id,name,email,role,"companyId",status FROM "User" WHERE "phoneE164"=? OR phone=? OR phone=? ORDER BY CASE WHEN "phoneE164"=? THEN 0 ELSE 1 END LIMIT 1 FOR UPDATE`).get(phoneE164, phoneE164.slice(3), phoneE164, phoneE164) as LoginUser | null;
+    const identity = await tx.prepare(`SELECT id,"userId" FROM "AuthIdentity" WHERE provider='phone' AND ("providerUserId"=? OR "providerUserId"=?) ORDER BY CASE WHEN "providerUserId"=? THEN 0 ELSE 1 END LIMIT 1 FOR UPDATE`).get(phoneE164, phoneE164.slice(3), phoneE164);
+    if (identity && user && identity.userId !== user.id) return { ok: false, kind: 'login_rejected' };
+    if (identity && !user) user = await tx.prepare(`SELECT id,name,email,role,"companyId",status FROM "User" WHERE id=? FOR UPDATE`).get(identity.userId) as LoginUser | null;
+    if (user && user.status !== 'active') return { ok: false, kind: 'login_rejected' };
+    const timestamp = new Date().toISOString();
+    if (!user) {
+      const userId = uuid();
+      await tx.prepare(`INSERT INTO "User" (id,name,"phoneE164","phoneVerifiedAt",status,role,"createdAt","updatedAt","lastLoginAt") VALUES (?,?,?,?,'active','member',?,?,?)`).run(userId, '企库库用户', phoneE164, timestamp, timestamp, timestamp, timestamp);
+      user = { id: userId, name: '企库库用户', email: null, role: 'member', companyId: null, status: 'active' };
+    } else {
+      await tx.prepare(`UPDATE "User" SET "phoneE164"=?,"phoneVerifiedAt"=?,"lastLoginAt"=?,"updatedAt"=? WHERE id=?`).run(phoneE164, timestamp, timestamp, timestamp, user.id);
+    }
+    if (identity) await tx.prepare(`UPDATE "AuthIdentity" SET "providerUserId"=?,"updatedAt"=? WHERE id=?`).run(phoneE164, timestamp, identity.id);
+    else await tx.prepare(`INSERT INTO "AuthIdentity" (id,"userId",provider,"providerUserId","createdAt","updatedAt") VALUES (?,?, 'phone', ?,?,?)`).run(uuid(), user.id, phoneE164, timestamp, timestamp);
+    return { ok: true, user };
+  }).catch(() => ({ ok: false, kind: 'login_rejected' } as const));
+  if (result.ok) await audit('SMS_LOGIN_SUCCEEDED', { ...auditValues, userId: result.user.id, companyId: result.user.companyId }, dependencies);
+  else await audit(result.kind === 'login_rejected' ? 'SMS_LOGIN_REJECTED' : 'SMS_VERIFY_FAILED', { ...auditValues, failureCategory: result.kind }, dependencies);
+  return result;
+}

@@ -28,11 +28,10 @@ function sessionSecret() {
 
 function sign(payload: string) { return createHmac('sha256', sessionSecret()).update(payload).digest('base64url'); }
 
-export async function createServerSession(user: SessionUserInput) {
+export async function createServerSession(user: SessionUserInput, db = getDb()) {
   const payload = Buffer.from(JSON.stringify({ sid: randomBytes(24).toString('base64url'), role: user.role })).toString('base64url');
   const token = `${payload}.${sign(payload)}`;
   const expiresAt = new Date(Date.now() + MAX_AGE_SECONDS * 1000).toISOString();
-  const db = getDb();
   const account = await db.prepare(`SELECT status FROM "User" WHERE id=?`).get(user.id);
   assertUserCanAuthenticate(account);
   const membership = await db.prepare(`SELECT "companyId" FROM "CompanyMembership" WHERE "userId"=? AND status='active' ORDER BY "joinedAt" ASC,"createdAt" ASC LIMIT 1`).get(user.id);

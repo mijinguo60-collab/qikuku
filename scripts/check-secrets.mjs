@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
@@ -9,6 +9,9 @@ const PATTERNS = [
   /IMAGE_API_KEY=sk-[^\s]+/,
   /EMBEDDING_API_KEY=sk-[^\s]+/,
   /BLOB_READ_WRITE_TOKEN=[^\s]{20,}/,
+  /TENCENT_SMS_SECRET_ID=[^\s]{12,}/,
+  /TENCENT_SMS_SECRET_KEY=[^\s]{16,}/,
+  /SMS_CODE_PEPPER=[^\s]{32,}/,
 ];
 
 const SKIP = ['node_modules','.next','.git','package-lock.json','prisma/dev.db','prisma/dev.db-shm','prisma/dev.db-wal','.DS_Store','.env'];

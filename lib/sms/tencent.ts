@@ -1,23 +1,28 @@
 import * as tencentcloud from 'tencentcloud-sdk-nodejs';
-import type { SmsProvider, SmsSendInput } from './types';
-import { SmsProviderError } from './types';
+import { SmsProviderError, type SmsProvider, type SmsSendInput, type SmsSendResult } from './types';
 
-type TencentConfig = {
+export type TencentSmsConfig = {
   secretId: string;
   secretKey: string;
   sdkAppId: string;
   signName: string;
   templateId: string;
+  region: string;
+  endpoint: string;
 };
 
 export class TencentSmsProvider implements SmsProvider {
-  constructor(private readonly config: TencentConfig) {}
+  private readonly config: TencentSmsConfig;
 
-  async send({ phone, code }: SmsSendInput): Promise<void> {
+  constructor(config: TencentSmsConfig) {
+    this.config = config;
+  }
+
+  async sendVerificationCode({ phoneE164, code }: SmsSendInput): Promise<SmsSendResult> {
     const client = new tencentcloud.sms.v20210111.Client({
       credential: { secretId: this.config.secretId, secretKey: this.config.secretKey },
-      region: 'ap-guangzhou',
-      profile: { httpProfile: { endpoint: 'sms.tencentcloudapi.com' } },
+      region: this.config.region,
+      profile: { httpProfile: { endpoint: this.config.endpoint, reqTimeout: 15 } },
     });
 
     try {
@@ -25,16 +30,18 @@ export class TencentSmsProvider implements SmsProvider {
         SmsSdkAppId: this.config.sdkAppId,
         SignName: this.config.signName,
         TemplateId: this.config.templateId,
-        TemplateParamSet: [code, '5'],
-        PhoneNumberSet: [`+86${phone}`],
+        TemplateParamSet: [code],
+        PhoneNumberSet: [phoneE164],
       });
       const result = response.SendStatusSet?.[0];
       if (!result || result.Code !== 'Ok') {
-        throw new SmsProviderError(result?.Message || '腾讯云未接受短信发送请求', result?.Code);
+        const category = result?.Code?.toLowerCase().includes('limit') ? 'rate_limited' : 'provider';
+        throw new SmsProviderError('腾讯云未接受短信发送请求', category, result?.Code);
       }
-    } catch (error: any) {
+      return { providerRequestId: response.RequestId, providerStatusCode: result.Code };
+    } catch (error) {
       if (error instanceof SmsProviderError) throw error;
-      throw new SmsProviderError(error?.message || '腾讯云短信发送失败', error?.code);
+      throw new SmsProviderError('腾讯云短信发送失败', 'network');
     }
   }
 }
