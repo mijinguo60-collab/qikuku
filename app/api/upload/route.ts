@@ -7,7 +7,7 @@ import { chunkText } from '@/lib/ai/rag-pipeline';
 import { createEmbedding } from '@/lib/ai/embedding-provider';
 import { logAction } from '@/lib/audit';
 import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
-import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { requireCompanySubscription } from '@/lib/billing/plans';
 import { FEATURE_CREDITS } from '@/lib/billing/pricing';
 import { getRequestSession } from '@/lib/session';
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const user = await getRequestSession(request);
     if (!user) return NextResponse.json({ error: '未登录' }, { status: 401 });
 
-    await ensureCompanySubscription(user.companyId, user.id);
+    await requireCompanySubscription(user.companyId);
     const preflight = await checkCreditBalance(user.companyId, FEATURE_CREDITS.file_embedding);
     if (!preflight.ok) return NextResponse.json({ error: 'AI算力积分不足，请充值或升级套餐', requiredCredits: FEATURE_CREDITS.file_embedding, balance: preflight.balance, billingUrl: '/dashboard/billing' }, { status: 402 });
 
@@ -122,6 +122,28 @@ export async function POST(request: NextRequest) {
     const billing = embeddingStatus === 'success'
       ? await consumeCredits({ companyId: user.companyId, userId: user.id, amount: FEATURE_CREDITS.file_embedding, featureType: 'file_embedding', requestId: `document:${docId}`, idempotencyKey: `document:${docId}`, description: '文件解析与知识库向量化' })
       : null;
+
+    await logAction({
+      companyId: user.companyId,
+      userId: user.id,
+      action: 'document_upload',
+      targetType: 'Document',
+      targetId: docId,
+      result: {
+        knowledgeSpaceId,
+        fileType: ext,
+        fileSize: stored.size,
+        status: finalStatus,
+        chunkCount,
+        embeddingStatus,
+        chargedCredits: billing?.chargedCredits || 0,
+      },
+    }).catch((auditError: unknown) => {
+      console.error(
+        '[UPLOAD_AUDIT]',
+        auditError instanceof Error ? auditError.message : 'audit_failed',
+      );
+    });
 
     return NextResponse.json({
       success: true, documentId: docId, fileName: stored.originalName,

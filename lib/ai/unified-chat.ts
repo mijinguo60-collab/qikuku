@@ -8,7 +8,7 @@ import { getLlmConfig, isRuntimeLlmProvider, llmChatCompletion, llmChatCompletio
 import { appendChatMessage, ensureChatSession, SessionOwner } from '@/lib/chat-sessions';
 import { logAiCall } from '@/lib/ai/ai-logger';
 import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
-import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { requireCompanySubscription } from '@/lib/billing/plans';
 import { FEATURE_CREDITS } from '@/lib/billing/pricing';
 import { v4 as uuid } from 'uuid';
 
@@ -160,9 +160,7 @@ export async function handleUnifiedChatPost(request: NextRequest, options?: { re
     const featureType = skill ? 'skill_chat' : 'knowledge_chat';
     const requiredCredits = FEATURE_CREDITS[featureType];
 
-    // This is an existing POST-side subscription safeguard. It never initializes
-    // Plan rows; Plan initialization remains the explicit maintenance script.
-    await ensureCompanySubscription(owner.companyId, owner.id);
+    await requireCompanySubscription(owner.companyId);
     const preflight = await checkCreditBalance(owner.companyId, requiredCredits);
     if (!preflight.ok) return NextResponse.json({ error: 'AI算力积分不足，请充值或升级套餐', requiredCredits, balance: preflight.balance, billingUrl: '/dashboard/billing' }, { status: 402 });
 

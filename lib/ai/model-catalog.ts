@@ -4,6 +4,7 @@
  * provider/model mapping and live capability check have both been confirmed.
  */
 
+import { getModelBasePoints } from '@/lib/billing/pricing';
 export type ModelProvider = 'deepseek' | 'minimax' | 'kimi' | 'glm' | 'openai' | 'anthropic' | 'google' | 'alibaba';
 
 export type ModelCapabilities = {
@@ -53,6 +54,7 @@ export type ModelCatalogEntry = ModelCapabilities & {
   /** Never shown as an “integrated” model until a live provider check has passed. */
   verification: 'configured' | 'unverified';
 };
+
 
 const parsedDocumentTypes = ['pdf', 'docx', 'xlsx', 'txt', 'md', 'csv', 'json'];
 
@@ -108,12 +110,12 @@ function verifiedGpt(
   displayName: string,
   providerModelId: string,
   sortOrder: number,
-  estimatedCredits: number,
   description: string,
   tier: ModelCatalogEntry['tier'],
   details: Pick<ModelDetails, 'reasoning' | 'speed' | 'chinese' | 'longContext' | 'bestFor'>,
 ): ModelCatalogEntry {
   const entry = disabled(id, displayName, 'openai', sortOrder);
+  const basePoints = getModelBasePoints(providerModelId);
   return {
     ...entry,
     providerModelId,
@@ -121,9 +123,9 @@ function verifiedGpt(
     tier,
     enabled: true,
     recommended: tier === 'recommended',
-    inputCreditRate: estimatedCredits / 5,
-    outputCreditRate: estimatedCredits / 5,
-    estimatedCredits,
+    inputCreditRate: basePoints / 5,
+    outputCreditRate: basePoints / 5,
+    estimatedCredits: basePoints,
     supportsText: true,
     supportsStreaming: true,
     // Qikuku extracts these document formats and injects their text into the
@@ -154,22 +156,22 @@ function verifiedGpt(
 // 2026-07-16.  Capabilities which the current channel rejected or does not
 // expose stay false rather than inheriting an upstream vendor claim.
 const gptReferenceEntries: ModelCatalogEntry[] = [
-  verifiedGpt('gpt-54', 'GPT-5.4', 'gpt-5.4', 100, 8, '均衡型通用助手，适合常规企业资料问答、总结和结构化表达。', 'recommended', {
+  verifiedGpt('gpt-54', 'GPT-5.4', 'gpt-5.4', 100, '均衡型通用助手，适合常规企业资料问答、总结和结构化表达。', 'recommended', {
     reasoning: '定位为通用型分析与表达。', speed: '定位为均衡响应。', chinese: '定位为中文企业沟通与资料整理。', longContext: '定位为处理中长企业资料。', bestFor: '制度查询、内容归纳和常规工作协作。',
   }),
-  verifiedGpt('gpt-54-mini', 'GPT-5.4 mini', 'gpt-5.4-mini', 101, 5, '轻量快速模型，面向高频、短上下文的企业知识查询和提纲生成。', 'fast', {
+  verifiedGpt('gpt-54-mini', 'GPT-5.4 mini', 'gpt-5.4-mini', 101, '轻量快速模型，面向高频、短上下文的企业知识查询和提纲生成。', 'fast', {
     reasoning: '定位为轻量级日常推理。', speed: '定位为快速响应。', chinese: '定位为简洁中文问答。', longContext: '定位为短到中等长度资料处理。', bestFor: '高频问答、快速摘要和要点提取。',
   }),
-  verifiedGpt('gpt-55', 'GPT-5.5', 'gpt-5.5', 102, 12, '进阶分析模型，面向需要拆解问题、比较资料和形成建议的企业任务。', 'advanced', {
+  verifiedGpt('gpt-55', 'GPT-5.5', 'gpt-5.5', 102, '进阶分析模型，面向需要拆解问题、比较资料和形成建议的企业任务。', 'advanced', {
     reasoning: '定位为进阶的多步骤分析。', speed: '定位为稳健响应。', chinese: '定位为中文分析与建议生成。', longContext: '定位为跨段资料对比。', bestFor: '问题拆解、方案比较和分析型 Skill。',
   }),
-  verifiedGpt('gpt-56-luna', 'GPT-5.6 Luna', 'gpt-5.6-luna', 103, 12, '长资料阅读取向，面向多份企业文档的归纳、脉络梳理与持续对话。', 'advanced', {
+  verifiedGpt('gpt-56-luna', 'GPT-5.6 Luna', 'gpt-5.6-luna', 103, '长资料阅读取向，面向多份企业文档的归纳、脉络梳理与持续对话。', 'advanced', {
     reasoning: '定位为基于资料脉络的归纳。', speed: '定位为阅读优先的稳健响应。', chinese: '定位为中文长资料梳理。', longContext: '定位为较长企业资料与连续上下文。', bestFor: '会议纪要、制度集合和多轮资料梳理。',
   }),
-  verifiedGpt('gpt-56-sol', 'GPT-5.6 Sol', 'gpt-5.6-sol', 104, 18, '高阶推理取向，面向复杂经营问题、严谨分析框架和关键决策辅助。', 'advanced', {
+  verifiedGpt('gpt-56-sol', 'GPT-5.6 Sol', 'gpt-5.6-sol', 104, '高阶推理取向，面向复杂经营问题、严谨分析框架和关键决策辅助。', 'advanced', {
     reasoning: '定位为高阶复杂推理。', speed: '定位为优先保证分析深度。', chinese: '定位为中文经营分析。', longContext: '定位为复杂资料与多步骤论证。', bestFor: '经营诊断、复杂方案和高级分析型 Skill。',
   }),
-  verifiedGpt('gpt-56-terra', 'GPT-5.6 Terra', 'gpt-5.6-terra', 105, 15, '企业实务分析取向，面向跨部门资料整合、流程推演和可执行行动建议。', 'advanced', {
+  verifiedGpt('gpt-56-terra', 'GPT-5.6 Terra', 'gpt-5.6-terra', 105, '企业实务分析取向，面向跨部门资料整合、流程推演和可执行行动建议。', 'advanced', {
     reasoning: '定位为企业实务场景推演。', speed: '定位为稳健的结构化输出。', chinese: '定位为跨部门中文协作。', longContext: '定位为整合多来源企业资料。', bestFor: '流程优化、跨部门协同和行动清单。',
   }),
 ];
@@ -193,9 +195,9 @@ function verifiedGlmModel(): ModelCatalogEntry {
     iconKey: 'glm',
     recommended: true,
     tier: 'recommended',
-    estimatedCredits: 12,
-    inputCreditRate: 12 / 5,
-    outputCreditRate: 12 / 5,
+    estimatedCredits: getModelBasePoints('glm-5.2'),
+    inputCreditRate: getModelBasePoints('glm-5.2') / 5,
+    outputCreditRate: getModelBasePoints('glm-5.2') / 5,
     providerModelId: configured ? 'glm-5.2' : null,
     enabled: configured,
     supportsText: true,
@@ -239,31 +241,31 @@ const verifiedClaudeEntries: VerifiedClaudeEntry[] = [
   {
     id: 'claude-haiku-45', providerModelId: 'claude-haiku-4-5-20251001', displayName: 'Claude Haiku 4.5',
     description: '快速轻量的 Claude 模型，适合高频企业知识查询、资料摘要、分类整理和简短内容生成。',
-    recommended: false, tier: 'fast', estimatedCredits: 5, sortOrder: 120,
+    recommended: false, tier: 'fast', estimatedCredits: getModelBasePoints('claude-haiku-4-5'), sortOrder: 120,
     details: { reasoning: '定位为轻量资料归纳与日常问答。', speed: '定位为快速响应。', chinese: '已完成中文企业资料问答验证。', longContext: '当前未验证超长上下文上限。', bestFor: '高频查询、摘要、分类整理和简短内容。' },
   },
   {
     id: 'claude-sonnet-46', providerModelId: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6',
     description: '兼顾推理质量、响应速度和使用成本，适合企业日常分析、方案撰写、长资料总结和复杂知识问答。',
-    recommended: true, tier: 'recommended', estimatedCredits: 12, sortOrder: 121,
+    recommended: true, tier: 'recommended', estimatedCredits: getModelBasePoints('claude-sonnet-4-6'), sortOrder: 121,
     details: { reasoning: '定位为推理质量与效率均衡。', speed: '定位为稳健响应。', chinese: '已完成中文企业资料分析验证。', longContext: '当前未验证超长上下文上限。', bestFor: '日常分析、方案撰写、长资料总结和复杂问答。' },
   },
   {
     id: 'claude-opus-46', providerModelId: 'claude-opus-4-6', displayName: 'Claude Opus 4.6',
     description: '高阶分析模型，适合复杂问题拆解、多资料比较、严谨方案设计和管理决策辅助。',
-    recommended: false, tier: 'advanced', estimatedCredits: 18, sortOrder: 122,
+    recommended: false, tier: 'advanced', estimatedCredits: getModelBasePoints('claude-opus-4-6'), sortOrder: 122,
     details: { reasoning: '定位为复杂问题拆解与严谨方案设计。', speed: '定位为分析深度优先。', chinese: '已完成中文专业资料输出验证。', longContext: '当前未验证超长上下文上限。', bestFor: '多资料比较、方案设计和管理决策辅助。' },
   },
   {
     id: 'claude-opus-47', providerModelId: 'claude-opus-4-7', displayName: 'Claude Opus 4.7',
     description: '面向复杂推理与长链条任务的高能力模型，适合经营分析、战略推演和高质量专业输出。',
-    recommended: false, tier: 'advanced', estimatedCredits: 22, sortOrder: 123,
+    recommended: false, tier: 'advanced', estimatedCredits: getModelBasePoints('claude-opus-4-7'), sortOrder: 123,
     details: { reasoning: '定位为复杂推理与长链条任务。', speed: '定位为深度处理优先。', chinese: '已完成中文经营分析验证。', longContext: '当前未验证超长上下文上限。', bestFor: '经营分析、战略推演和专业输出。' },
   },
   {
     id: 'claude-opus-48', providerModelId: 'claude-opus-4-8', displayName: 'Claude Opus 4.8',
     description: 'Claude 系列高阶旗舰模型，适合最复杂的企业分析、长资料综合、决策论证和高要求专业任务。',
-    recommended: false, tier: 'flagship', estimatedCredits: 26, sortOrder: 124,
+    recommended: false, tier: 'flagship', estimatedCredits: getModelBasePoints('claude-opus-4-8'), sortOrder: 124,
     details: { reasoning: '定位为高要求的复杂企业分析。', speed: '定位为优先保证推理与论证质量。', chinese: '已完成中文复杂资料验证。', longContext: '当前未验证超长上下文上限。', bestFor: '长资料综合、决策论证和高要求专业任务。' },
   },
 ];
@@ -322,19 +324,19 @@ const verifiedGeminiEntries: VerifiedGeminiEntry[] = [
   {
     id: 'gemini-3-flash-preview', providerModelId: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash Preview',
     description: '快速响应的 Gemini 模型，适合高频企业知识问答、资料总结、内容整理和轻量任务处理。',
-    recommended: false, tier: 'fast', estimatedCredits: 5, sortOrder: 110,
+    recommended: false, tier: 'fast', estimatedCredits: getModelBasePoints('gemini-3-flash'), sortOrder: 110,
     details: { reasoning: '定位为轻量企业资料归纳与日常问答。', speed: '定位为快速响应。', chinese: '已完成中文企业资料问答验证。', longContext: '当前未验证超长上下文上限。', bestFor: '高频资料查询、内容整理和轻量任务。' },
   },
   {
     id: 'gemini-31-pro-preview', providerModelId: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro Preview',
     description: '面向复杂分析和高质量输出的进阶模型，适合长资料归纳、复杂问题拆解、方案生成和决策辅助。',
-    recommended: false, tier: 'advanced', estimatedCredits: 15, sortOrder: 111,
+    recommended: false, tier: 'advanced', estimatedCredits: getModelBasePoints('gemini-3.1-pro'), sortOrder: 111,
     details: { reasoning: '定位为复杂问题拆解与结构化分析。', speed: '定位为深度分析优先。', chinese: '已完成中文资料分析验证。', longContext: '当前未验证超长上下文上限。', bestFor: '多资料归纳、方案生成和决策辅助。' },
   },
   {
     id: 'gemini-35-flash', providerModelId: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash',
     description: '兼顾响应速度与任务质量的实用模型，适合日常企业问答、批量资料处理、总结和结构化输出。',
-    recommended: true, tier: 'recommended', estimatedCredits: 8, sortOrder: 112,
+    recommended: true, tier: 'recommended', estimatedCredits: getModelBasePoints('gemini-3.5-flash'), sortOrder: 112,
     details: { reasoning: '定位为效率与资料处理质量兼顾。', speed: '定位为快速且稳健的日常响应。', chinese: '已完成中文企业问答验证。', longContext: '当前未验证超长上下文上限。', bestFor: '日常问答、批量资料总结和结构化输出。' },
   },
 ];
@@ -390,12 +392,12 @@ function verifiedDeepSeekModels(): ModelCatalogEntry[] {
     {
       id: 'deepseek-v4-flash', providerModelId: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash',
       description: '快速高效的企业知识问答，适合高频资料查询、内容总结、制度检索和日常员工问答。',
-      recommended: true, tier: 'fast' as const, estimatedCredits: 5, sortOrder: 1,
+      recommended: true, tier: 'fast' as const, estimatedCredits: getModelBasePoints('deepseek-v4-flash'), sortOrder: 1,
     },
     {
       id: 'deepseek-v4-pro', providerModelId: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro',
       description: '面向复杂企业问题的进阶分析，适合多资料比较、经营问题拆解和结构化方案。',
-      recommended: false, tier: 'advanced' as const, estimatedCredits: 12, sortOrder: 2,
+      recommended: false, tier: 'advanced' as const, estimatedCredits: getModelBasePoints('deepseek-v4-pro'), sortOrder: 2,
     },
   ];
 
@@ -405,8 +407,8 @@ function verifiedDeepSeekModels(): ModelCatalogEntry[] {
     iconKey: 'deepseek',
     providerModelId: configured && verifiedIds.has(entry.providerModelId) ? entry.providerModelId : null,
     enabled: configured && verifiedIds.has(entry.providerModelId),
-    inputCreditRate: 1,
-    outputCreditRate: 1,
+    inputCreditRate: getModelBasePoints(entry.providerModelId) / 5,
+    outputCreditRate: getModelBasePoints(entry.providerModelId) / 5,
     supportsText: true,
     // The current OpenAI-compatible route has only been verified for text.
     // Parsed documents are extracted by Qikuku before model invocation.

@@ -6,7 +6,7 @@ import { getDb } from '@/lib/db';
 import { appendChatMessage, ensureChatSession, SessionOwner } from '@/lib/chat-sessions';
 import { v4 as uuid } from 'uuid';
 import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
-import { ensureCompanySubscription } from '@/lib/billing/plans';
+import { requireCompanySubscription } from '@/lib/billing/plans';
 import { FEATURE_CREDITS } from '@/lib/billing/pricing';
 import { getRequestSession } from '@/lib/session';
 
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     const ratio = RATIOS[aspectRatio] ? aspectRatio : '1:1';
     const size = RATIOS[ratio];
     const n = Math.min(Math.max(parseInt(count) || 1, 1), MAX_COUNT);
-    await ensureCompanySubscription(owner.companyId, owner.id);
+    await requireCompanySubscription(owner.companyId);
     const featureType = referenceImage ? 'image_edit' : 'image_generation';
     const requiredCredits = FEATURE_CREDITS[featureType];
     const preflight = await checkCreditBalance(owner.companyId, requiredCredits * n);
