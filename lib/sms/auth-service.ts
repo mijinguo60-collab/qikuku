@@ -4,11 +4,27 @@ import { writeAuditLog } from '@/lib/audit-log';
 import { initializeTrialSubscriptionForCompany } from '@/lib/billing/plans';
 import { getSmsProvider } from './index';
 import { getSmsSecurityConfig, hashPhone, hashRequestIp, hashUserAgent, hashVerificationCode, maskPhone, phoneLast4, SMS_PURPOSE_LOGIN, verificationCodeMatches } from './security';
+import {
+  acceptPhoneInvitationInTransaction,
+  auditInvitationAccepted,
+  getActiveInvitationForPhone,
+  InvitationError,
+  invitationAcceptPurpose,
+  isInvitationUsable,
+  type InvitationErrorCode,
+  type InvitationRow,
+} from '@/lib/invitations/company-invitations';
+import { verifyBoundPhone } from '@/lib/invitations/phone-binding';
 import { SmsProviderError, type SmsProvider } from './types';
 
 type RequestMetadata = { ip: string; userAgent: string };
 type ChallengeRow = { id: string; codeHash: string; expiresAt: Date | string; attempts: number; maxAttempts: number };
 type LoginUser = { id: string; name: string; email: string | null; role: string; companyId: string | null; status: string };
+
+// Cooldown remains purpose-scoped, but phone quotas intentionally are not:
+// otherwise each invitation-specific purpose could bypass phone-level limits.
+export const SMS_GLOBAL_PHONE_HOURLY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?`;
+export const SMS_GLOBAL_PHONE_DAILY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?`;
 
 export type SmsSendCodeResult = { ok: true; maskedPhone: string } | { ok: false; kind: 'configuration' | 'rate_limited' | 'send_failed' };
 export type SmsVerifyCodeResult = { ok: true; user: LoginUser } | { ok: false; kind: 'invalid_code' | 'login_rejected' | 'configuration' };
@@ -67,15 +83,21 @@ async function audit(
   dependencies: SmsAuthServiceDependencies,
 ) {
   const auditWriter = dependencies.auditWriter ?? writeAuditLog;
-
-  await auditWriter({
-    companyId: values.companyId || '', userId: values.userId, action,
-    detail: { phoneHash: values.phoneHash, phoneLast4: values.phoneLast4, ipHash: values.ipHash, userAgentHash: values.userAgentHash, providerRequestId: values.providerRequestId, failureCategory: values.failureCategory, provider: 'tencent_sms' },
-  });
+  // Auditing happens after the relevant state transition. It must never turn
+  // a delivered code or consumed challenge into a client-visible failure.
+  try {
+    await auditWriter({
+      companyId: values.companyId || '', userId: values.userId, action,
+      detail: { phoneHash: values.phoneHash, phoneLast4: values.phoneLast4, ipHash: values.ipHash, userAgentHash: values.userAgentHash, providerRequestId: values.providerRequestId, failureCategory: values.failureCategory, provider: 'tencent_sms' },
+    });
+  } catch {
+    // Do not log sensitive authentication data while auditing is unavailable.
+  }
 }
 
-export async function requestSmsLoginCode(
+export async function issueSmsChallenge(
   phoneE164: string,
+  purpose: string,
   metadata: RequestMetadata,
   code: string,
   dependencies: SmsAuthServiceDependencies = {},
@@ -100,22 +122,22 @@ export async function requestSmsLoginCode(
       // sequentially instead of issuing concurrent queries on the same client.
       const cooldown = await tx
         .prepare(`SELECT id FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">? ORDER BY "createdAt" DESC LIMIT 1`)
-        .get(phoneHash, SMS_PURPOSE_LOGIN, cooldownAt);
+        .get(phoneHash, purpose, cooldownAt);
 
       const phoneHourly = await tx
-        .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">?`)
-        .get(phoneHash, SMS_PURPOSE_LOGIN, hourAt);
+        .prepare(SMS_GLOBAL_PHONE_HOURLY_LIMIT_SQL)
+        .get(phoneHash, hourAt);
 
       const phoneDaily = await tx
-        .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">?`)
-        .get(phoneHash, SMS_PURPOSE_LOGIN, dayAt);
+        .prepare(SMS_GLOBAL_PHONE_DAILY_LIMIT_SQL)
+        .get(phoneHash, dayAt);
 
       const ipHourly = await tx
         .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "requestIpHash"=? AND "createdAt">?`)
         .get(ipHash, hourAt);
       if (cooldown || Number(phoneHourly?.count || 0) >= config.phoneHourlyLimit || Number(phoneDaily?.count || 0) >= config.phoneDailyLimit || Number(ipHourly?.count || 0) >= config.ipHourlyLimit) return false;
       await tx.prepare(`INSERT INTO "SmsVerificationChallenge" (id,"phoneHash","phoneLast4",purpose,"codeHash","expiresAt",attempts,"maxAttempts","sendStatus","requestIpHash","userAgentHash","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .run(challengeId, phoneHash, phoneLast4(phoneE164), SMS_PURPOSE_LOGIN, hashVerificationCode(config.pepper, phoneE164, SMS_PURPOSE_LOGIN, code), new Date(now.getTime() + config.ttlSeconds * 1000).toISOString(), 0, config.maxVerifyAttempts, 'PENDING', ipHash, userAgentHash, now.toISOString(), now.toISOString());
+        .run(challengeId, phoneHash, phoneLast4(phoneE164), purpose, hashVerificationCode(config.pepper, phoneE164, purpose, code), new Date(now.getTime() + config.ttlSeconds * 1000).toISOString(), 0, config.maxVerifyAttempts, 'PENDING', ipHash, userAgentHash, now.toISOString(), now.toISOString());
       return true;
     });
     if (!allowed) {
@@ -131,7 +153,7 @@ export async function requestSmsLoginCode(
       await lockPhone(tx, phoneHash);
       const update = await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='SENT',"providerRequestId"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(sent.providerRequestId || null, sent.providerStatusCode || 'Ok', new Date().toISOString(), challengeId);
       if (update.changes !== 1) throw new Error('sms_challenge_state_changed');
-      await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "consumedAt"=?,"updatedAt"=? WHERE "phoneHash"=? AND purpose=? AND id<>? AND "sendStatus"='SENT' AND "consumedAt" IS NULL`).run(new Date().toISOString(), new Date().toISOString(), phoneHash, SMS_PURPOSE_LOGIN, challengeId);
+      await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "consumedAt"=?,"updatedAt"=? WHERE "phoneHash"=? AND purpose=? AND id<>? AND "sendStatus"='SENT' AND "consumedAt" IS NULL`).run(new Date().toISOString(), new Date().toISOString(), phoneHash, purpose, challengeId);
     });
     await audit('SMS_CODE_SENT', { ...auditValues, providerRequestId: sent.providerRequestId }, dependencies);
     return { ok: true, maskedPhone: maskPhone(phoneE164) };
@@ -142,6 +164,96 @@ export async function requestSmsLoginCode(
     if (error instanceof SmsProviderError && error.category === 'configuration') return { ok: false, kind: 'configuration' };
     if (error instanceof SmsProviderError && error.category === 'rate_limited') return { ok: false, kind: 'rate_limited' };
     return { ok: false, kind: 'send_failed' };
+  }
+}
+
+export async function requestSmsLoginCode(
+  phoneE164: string,
+  metadata: RequestMetadata,
+  code: string,
+  dependencies: SmsAuthServiceDependencies = {},
+): Promise<SmsSendCodeResult> {
+  return issueSmsChallenge(phoneE164, SMS_PURPOSE_LOGIN, metadata, code, dependencies);
+}
+
+export async function verifySmsChallengeInTransaction(
+  tx: any,
+  input: { phoneE164: string; purpose: string; code: string },
+): Promise<{ ok: true } | { ok: false; kind: 'invalid_code' | 'configuration' }> {
+  const config = getSmsSecurityConfig();
+  if (!config) return { ok: false, kind: 'configuration' };
+  const phoneHash = hashPhone(config.pepper, input.phoneE164);
+  await lockPhone(tx, phoneHash);
+  const challenge = await tx.prepare(`SELECT id,"codeHash","expiresAt",attempts,"maxAttempts" FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "sendStatus"='SENT' AND "consumedAt" IS NULL ORDER BY "createdAt" DESC LIMIT 1 FOR UPDATE`).get(phoneHash, input.purpose) as ChallengeRow | null;
+  if (!challenge || asDate(challenge.expiresAt).getTime() <= Date.now() || Number(challenge.attempts) >= Number(challenge.maxAttempts)) return { ok: false, kind: 'invalid_code' };
+  if (!verificationCodeMatches(challenge.codeHash, hashVerificationCode(config.pepper, input.phoneE164, input.purpose, input.code))) {
+      const attempts = Number(challenge.attempts) + 1;
+      await tx.prepare(`UPDATE "SmsVerificationChallenge" SET attempts=?,"consumedAt"=CASE WHEN ?>="maxAttempts" THEN ? ELSE "consumedAt" END,"updatedAt"=? WHERE id=? AND "consumedAt" IS NULL`).run(attempts, attempts, new Date().toISOString(), new Date().toISOString(), challenge.id);
+    return { ok: false, kind: 'invalid_code' };
+  }
+  const consumed = await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "consumedAt"=?,"updatedAt"=? WHERE id=? AND "consumedAt" IS NULL AND "sendStatus"='SENT'`).run(new Date().toISOString(), new Date().toISOString(), challenge.id);
+  return consumed.changes === 1 ? { ok: true } : { ok: false, kind: 'invalid_code' };
+}
+
+export async function verifyAndConsumeSmsChallenge(
+  phoneE164: string,
+  purpose: string,
+  code: string,
+  metadata: RequestMetadata,
+  dependencies: SmsAuthServiceDependencies = {},
+): Promise<{ ok: true } | { ok: false; kind: 'invalid_code' | 'configuration' }> {
+  const config = getSmsSecurityConfig();
+  if (!config) return { ok: false, kind: 'configuration' };
+  const db = dependencies.db ?? getDb();
+  const phoneHash = hashPhone(config.pepper, phoneE164);
+  const ipHash = hashRequestIp(config.pepper, metadata.ip);
+  const userAgentHash = hashUserAgent(config.pepper, metadata.userAgent || 'unknown');
+  const verification = await db.transactionAsync((tx: any) => verifySmsChallengeInTransaction(tx, { phoneE164, purpose, code })).catch(() => ({ ok: false as const, kind: 'invalid_code' as const }));
+  const result = verification.ok;
+  await audit(result ? 'SMS_VERIFY_SUCCEEDED' : 'SMS_VERIFY_FAILED', { phoneHash, phoneLast4: phoneLast4(phoneE164), ipHash, userAgentHash, failureCategory: result ? undefined : 'invalid_code' }, dependencies);
+  return result ? { ok: true } : { ok: false, kind: 'invalid_code' };
+}
+
+export async function sendInvitationAcceptCode(
+  inviteCode: string,
+  phoneE164: string,
+  metadata: RequestMetadata,
+  code: string,
+  dependencies: SmsAuthServiceDependencies = {},
+) {
+  const invitation = await getActiveInvitationForPhone(inviteCode, phoneE164, dependencies.db ?? getDb());
+  if (!invitation) return { ok: false as const, kind: 'invalid_invitation' as const };
+  return issueSmsChallenge(phoneE164, invitationAcceptPurpose(invitation.id), metadata, code, dependencies);
+}
+
+export async function acceptInvitationWithCode(
+  inviteCode: string,
+  phoneE164: string,
+  code: string,
+  metadata: RequestMetadata,
+  dependencies: SmsAuthServiceDependencies = {},
+) {
+  const config = getSmsSecurityConfig();
+  if (!config) return { ok: false as const, kind: 'configuration' as const };
+  const db = dependencies.db ?? getDb();
+  try {
+    const result = await db.transactionAsync(async (tx: any) => {
+      const phoneHash = hashPhone(config.pepper, phoneE164);
+      await lockPhone(tx, phoneHash);
+      const invitation = await tx.prepare(`SELECT * FROM "CompanyInvitation" WHERE "inviteCode"=? FOR UPDATE`).get(inviteCode) as InvitationRow | null;
+      if (!invitation || !isInvitationUsable(invitation) || !verifyBoundPhone(invitation.boundPhone, phoneE164)) {
+        return { ok: false as const, kind: 'invalid_invitation' as const };
+      }
+      const verification = await verifySmsChallengeInTransaction(tx, { phoneE164, purpose: invitationAcceptPurpose(invitation.id), code });
+      if (!verification.ok) return verification;
+      const acceptance = await acceptPhoneInvitationInTransaction(tx, { invitation, phoneE164 });
+      return { ok: true as const, acceptance };
+    });
+    if (result.ok) await auditInvitationAccepted(result.acceptance, dependencies.auditWriter);
+    return result;
+  } catch (error) {
+    if (error instanceof InvitationError) return { ok: false as const, kind: error.code as InvitationErrorCode };
+    return { ok: false as const, kind: 'service_unavailable' as const };
   }
 }
 

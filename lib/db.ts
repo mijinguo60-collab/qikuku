@@ -3,9 +3,11 @@
  * Returns a unified interface supporting .prepare().get()/.all()/.run()
  */
 import { Pool, types as pgTypes } from 'pg';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import path from 'path';
 
 let db: any = undefined;
+const serverTestDbContext = new AsyncLocalStorage<any>();
 const URL = process.env.DATABASE_URL || '';
 const REQUIRE_POSTGRES = process.env.DATABASE_REQUIRE_POSTGRES === 'true';
 const PG_POOL_MAX = 5;
@@ -70,7 +72,7 @@ function createPgDb(): any {
     }),
     transaction: (fn: any) => fn(),
     // New code that needs real atomicity (such as balance deductions) should use this.
-    transactionAsync: async (fn: (tx: any) => Promise<any>) => {
+    transactionAsync: async (fn: Function) => {
       const client = await pool.connect();
       let releaseError: Error | undefined;
       try {
@@ -94,7 +96,7 @@ function createSqliteDb(): any {
   const sq = new Database(path.join(process.cwd(), 'prisma', 'dev.db'));
   sq.pragma('journal_mode = WAL');
   sq.pragma('foreign_keys = ON');
-  (sq as any).transactionAsync = async (fn: (tx: any) => Promise<any>) => {
+  (sq as any).transactionAsync = async (fn: Function) => {
     sq.exec('BEGIN IMMEDIATE');
     try {
       const result = await fn(sq);
@@ -114,6 +116,8 @@ function createMockDb(): any {
 }
 
 export function getDb(): any {
+  const scopedDb = serverTestDbContext.getStore();
+  if (scopedDb) return scopedDb;
   if (db) return db;
   const isPg = URL.startsWith('postgresql://') || URL.startsWith('postgres://');
   if (REQUIRE_POSTGRES && !isPg) {
@@ -140,6 +144,12 @@ export function getDb(): any {
   db = createMockDb();
   console.warn('[DB] Using mock database');
   return db;
+}
+
+/** Server-test-only async scope; never derived from HTTP request data. */
+export async function withServerTestDb<T>(testDb: any, fn: () => Promise<T>): Promise<T> {
+  if (process.env.NODE_ENV !== 'test') throw new Error('仅测试环境可以注入数据库');
+  return serverTestDbContext.run(testDb, fn);
 }
 
 export default getDb;

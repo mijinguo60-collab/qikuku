@@ -150,7 +150,9 @@ async function main() {
   }, null, 2));
 
   const {
+    issueSmsChallenge,
     requestSmsLoginCode,
+    verifyAndConsumeSmsChallenge,
     verifySmsLoginCode,
   } = await import('../lib/sms/auth-service');
 
@@ -241,7 +243,7 @@ async function main() {
         },
       };
 
-      const auditWriter = async () => undefined;
+      const auditWriter = async () => { throw new Error('audit unavailable'); };
       const dependencies = {
         db,
         provider,
@@ -283,6 +285,34 @@ async function main() {
       assert.equal(challenge.rows[0].consumedAt, null);
       assert.notEqual(challenge.rows[0].codeHash, code);
 
+      const directPhoneE164 = `+86198${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
+      const directSend = await issueSmsChallenge(
+        directPhoneE164,
+        'SMS_AUDIT_FAILURE_TEST',
+        metadata,
+        '345678',
+        dependencies,
+      );
+      assert.equal(directSend.ok, true, '审计失败不得影响短信发送');
+      const directProviderRequestId = `${providerRequestPrefix}-2`;
+      const directChallenge = await client.query(
+        `SELECT "sendStatus", "consumedAt" FROM "SmsVerificationChallenge" WHERE "providerRequestId"=$1`,
+        [directProviderRequestId],
+      );
+      assert.deepEqual(directChallenge.rows[0], { sendStatus: 'SENT', consumedAt: null });
+      assert.deepEqual(
+        await verifyAndConsumeSmsChallenge(
+          directPhoneE164,
+          'SMS_AUDIT_FAILURE_TEST',
+          '345678',
+          metadata,
+          dependencies,
+        ),
+        { ok: true },
+      );
+      assert.ok((await client.query(`SELECT "consumedAt" FROM "SmsVerificationChallenge" WHERE "providerRequestId"=$1`, [directProviderRequestId])).rows[0].consumedAt);
+
+      const providerCallsBeforeCooldown = sentCodes.length;
       const cooldownResult = await requestSmsLoginCode(
         phoneE164,
         metadata,
@@ -297,7 +327,7 @@ async function main() {
 
       assert.equal(
         sentCodes.length,
-        1,
+        providerCallsBeforeCooldown,
         '冷却期请求不得再次调用短信供应商',
       );
 
@@ -481,6 +511,7 @@ async function main() {
       );
 
       const secondCode = '654322';
+      const providerCallsBeforeSecondSend = sentCodes.length;
       const secondSendResult = await requestSmsLoginCode(
         phoneE164,
         metadata,
@@ -488,7 +519,7 @@ async function main() {
         dependencies,
       );
       assert.equal(secondSendResult.ok, true);
-      assert.equal(sentCodes.length, 2);
+      assert.equal(sentCodes.length, providerCallsBeforeSecondSend + 1);
 
       const secondVerifyResult = await verifySmsLoginCode(
         phoneE164,
@@ -664,7 +695,7 @@ async function main() {
 
       assert.equal(
         during.SmsVerificationChallenge,
-        before.SmsVerificationChallenge + 5,
+        before.SmsVerificationChallenge + 6,
       );
       assert.equal(during.User, before.User + 4);
       assert.equal(during.AuthIdentity, before.AuthIdentity + 4);
