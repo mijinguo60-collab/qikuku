@@ -16,7 +16,6 @@
 | IMAGE_API_KEY | 图片生成 API Key |
 | IMAGE_BASE_URL | 图片 API 地址 |
 | IMAGE_MODEL | 图片模型名 |
-| ENABLE_DEMO_FALLBACK | 设 false |
 | NEXTAUTH_URL | https://www.qikuku.cn |
 | NEXTAUTH_SECRET | 随机字符串 |
 
@@ -24,7 +23,6 @@
 
 ```bash
 npx prisma db push
-npm run db:seed
 ```
 
 ## 部署步骤

@@ -7,13 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:seed": "tsx scripts/seed-production.ts",
     "db:push": "prisma db push",
     "billing:init": "tsx scripts/init-billing.ts",
     "memberships:migrate": "tsx scripts/migrate-company-memberships.ts",
     "users:cleanup-legacy": "tsx scripts/cleanup-legacy-email-users.ts",
-    "onboarding:e2e-cleanup": "tsx scripts/e2e-onboarding-cleanup.ts",
-    "verify:users": "tsx scripts/verify-users.ts",
     "check:storage": "node scripts/check-storage.mjs",
     "check:rag": "node scripts/check-rag.mjs",
     "check:ai": "node scripts/check-ai.mjs",
@@ -29,20 +26,17 @@
     "check:image": "node scripts/check-image.mjs",
     "check:models": "node scripts/check-models.mjs",
     "check:billing": "node scripts/check-billing.mjs && node scripts/check-billing-readonly.mjs",
-    "check:permissions": "node scripts/check-permissions.mjs",
     "check:commercial": "node scripts/check-commercial.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "check:production": "node scripts/check-production.mjs",
     "check:db-tables": "node scripts/check-db-tables.mjs",
-    "check:routes": "node scripts/check-routes.mjs",
-    "debug:dashboard-pages": "node scripts/debug-dashboard-pages.mjs"
+    "check:routes": "node scripts/check-routes.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@prisma/client": "^7.8.0",
     "@types/qrcode": "^1.5.6",
     "@vercel/blob": "^2.6.1",
-    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.11.1",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",
@@ -63,7 +57,6 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
@@ -77,8 +70,5 @@
     "tailwindcss": "^3.4.1",
     "tsx": "^4.23.0",
     "typescript": "^5"
-  },
-  "prisma": {
-    "seed": "tsx scripts/seed-production.ts"
   }
 }

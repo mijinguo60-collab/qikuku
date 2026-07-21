@@ -28,8 +28,8 @@ npm run dev
 
 | 角色 | 邮箱 | 密码 |
 |------|------|------|
-| 管理员 | admin@zhucheng.com | 123456 |
-| 员工 | employee@zhucheng.com | 123456 |
+| 企业创始人 | 通过手机号验证码登录创建 | 无固定密码 |
+| 企业员工 | 通过受邀手机号验证码加入 | 无固定密码 |
 
 ## 环境变量说明
 
@@ -89,7 +89,6 @@ CMD ["npm", "start"]
 2. 修改 `prisma/schema.prisma` 中 datasource provider 为 `postgresql`
 3. 设置 `DATABASE_URL` 为 PostgreSQL 连接串
 4. 运行 `npx prisma migrate dev` 创建表
-5. 运行 `node lib/seed.js` 初始化种子数据
 
 ## 向量数据库 (可选)
 
