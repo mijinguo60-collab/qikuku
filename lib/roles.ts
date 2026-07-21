@@ -4,12 +4,12 @@
  * 账号状态一律由 User.status 管理，不得由角色承载。
  */
 
-type NormRole = 'owner' | 'admin' | 'manager' | 'staff' | 'sales' | 'content' | 'readonly';
+type NormRole = 'owner' | 'admin' | 'manager' | 'member' | 'sales' | 'content' | 'readonly';
 
 const ROLE_MAP: Record<string, NormRole> = {
   super_admin: 'owner', platform_super_admin: 'owner', owner: 'owner', admin: 'admin',
-  manager: 'manager', member: 'staff', employee: 'staff',
-  staff: 'staff', sales: 'sales', content: 'content',
+  manager: 'manager', member: 'member', employee: 'member',
+  staff: 'member', sales: 'sales', content: 'content',
   readonly: 'readonly',
 };
 
@@ -23,7 +23,7 @@ export function isAdminRole(raw: string): boolean {
 }
 
 export function isStaffRole(raw: string): boolean {
-  return ['staff', 'sales', 'content', 'readonly', 'manager'].includes(normalizeRole(raw));
+  return ['member', 'sales', 'content', 'readonly', 'manager'].includes(normalizeRole(raw));
 }
 
 const ADMIN_ONLY_PREFIXES = [

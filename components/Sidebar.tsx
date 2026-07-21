@@ -45,6 +45,8 @@ const menuGroups = [
 export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
   const router = useRouter();
 
   const { totalBalance: creditBalance, loading: creditsLoading } = useCreditBalance();
@@ -52,9 +54,22 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
   const effectiveRole = userRole;
 
   async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.replace('/auth/login');
-    router.refresh();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError('');
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' });
+      if (!response.ok) {
+        setLogoutError('退出登录失败，请稍后重试。');
+        return;
+      }
+      router.replace('/auth/login');
+      router.refresh();
+    } catch {
+      setLogoutError('网络异常，未能退出登录。');
+    } finally {
+      setLoggingOut(false);
+    }
   }
 
   return (
@@ -103,9 +118,10 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
           <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
           {!collapsed && <span className="whitespace-nowrap">收起菜单</span>}
         </button>
-        <button onClick={handleLogout} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-danger hover:bg-danger/5 transition-all w-full text-left">
+        {logoutError && !collapsed && <p className="px-3 text-xs text-danger" role="alert">{logoutError}</p>}
+        <button onClick={handleLogout} disabled={loggingOut} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-danger hover:bg-danger/5 transition-all w-full text-left disabled:opacity-60">
           <LogOut className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span className="whitespace-nowrap">退出登录</span>}
+          {!collapsed && <span className="whitespace-nowrap">{loggingOut ? '退出中…' : '退出登录'}</span>}
         </button>
       </div>
     </aside>

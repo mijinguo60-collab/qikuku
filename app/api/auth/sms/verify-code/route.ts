@@ -21,11 +21,11 @@ export async function POST(request: NextRequest) {
   const result = await verifySmsLoginCode(phoneE164, input.data.code, requestMetadata(request));
   if (!result.ok) {
     if (result.kind === 'configuration') return NextResponse.json({ error: '短信服务尚未配置' }, { status: 503 });
-    return NextResponse.json({ error: result.kind === 'login_rejected' ? '当前手机号暂不可登录' : '验证码错误或已失效' }, { status: 401 });
+    return NextResponse.json({ error: result.kind === 'login_rejected' ? '当前账号企业信息异常，请联系管理员' : '验证码错误或已失效' }, { status: 401 });
   }
   try {
     const { token, activeCompanyId } = await createServerSession({
-      id: result.user.id, name: result.user.name, email: result.user.email || '', role: result.user.role, companyId: result.user.companyId || '',
+      id: result.user.id, name: result.user.name, email: result.user.email || '',
     });
     const response = NextResponse.json({ success: true, redirect: activeCompanyId ? '/dashboard' : '/onboarding' });
     setSessionCookie(response, token);

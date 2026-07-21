@@ -11,7 +11,7 @@ export default function CTA() {
         <p className="text-text-secondary text-lg mb-8">
           无需部署，无需技术团队，15 分钟完成知识库搭建。
         </p>
-        <Link href="/auth/register" className="btn-primary text-base px-8 py-3.5 rounded-xl inline-flex items-center gap-2">
+        <Link href="/auth/login" className="btn-primary text-base px-8 py-3.5 rounded-xl inline-flex items-center gap-2">
           立即开始 <ArrowRight className="w-5 h-5" />
         </Link>
         <p className="mt-4 text-xs text-text-muted">免费开始，无需信用卡</p>

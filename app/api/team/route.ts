@@ -1,56 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { writeAuditLog } from '@/lib/audit-log';
-import { v4 as uuid } from 'uuid';
-import bcrypt from 'bcryptjs';
-import { getRequestSession } from '@/lib/session';
+import { getActiveMembership } from '@/lib/membership';
+import { isAdminRole } from '@/lib/roles';
 
-const ALLOWED_ROLES = ['manager','staff','sales','content','readonly'];
+async function requireTeamOwner(request: NextRequest) {
+  const current = await getActiveMembership(request);
+  if (!current) return { response: NextResponse.json({ error: '未登录' }, { status: 401 }) };
+  if (!isAdminRole(current.membership.role)) return { response: NextResponse.json({ error: '无权限' }, { status: 403 }) };
+  return { current };
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const u = await getRequestSession(request);
-    if (!u) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    if (u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'owner' && u.role !== 'manager') {
-      return NextResponse.json({ error: '无权限' }, { status: 403 });
-    }
+    const access = await requireTeamOwner(request);
+    if ('response' in access) return access.response;
     const db = getDb();
-    const rows = await db.prepare(`SELECT id, name, email, role, status, "createdAt" FROM "User" WHERE "companyId" = ? ORDER BY "createdAt"`).all(u.companyId);
+    const rows = await db.prepare(`SELECT m.id as "membershipId",u.id as "userId",u.name,u.email,m.role as "membershipRole",m.status as "membershipStatus",u.status as "userStatus",m."joinedAt" FROM "CompanyMembership" m JOIN "User" u ON u.id=m."userId" WHERE m."companyId"=? ORDER BY m."joinedAt" ASC,m."createdAt" ASC`).all(access.current.membership.companyId);
     return NextResponse.json({ members: rows });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
+  } catch { return NextResponse.json({ error: '成员列表加载失败，请稍后重试' }, { status: 500 }); }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const u = await getRequestSession(request);
-    if (!u) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    if (u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'owner') {
-      return NextResponse.json({ error: '无权限' }, { status: 403 });
-    }
-    const { name, email, password, role } = await request.json();
-    if (!name || !email || !password) return NextResponse.json({ error: '缺少信息' }, { status: 400 });
-    const effectiveRole = ALLOWED_ROLES.includes(role) ? role : 'staff';
-    const hash = await bcrypt.hash(password, 12);
-    const db = getDb();
-    await db.prepare(`INSERT INTO "User" (id, name, email, "passwordHash", role, "companyId", "createdAt") VALUES (?,?,?,?,?,?,?)`)
-      .run(uuid(), name, email, hash, effectiveRole, u.companyId, new Date().toISOString());
-    await writeAuditLog({ companyId: u.companyId, userId: u.id, action: 'member_created', detail: JSON.stringify({ email, role: effectiveRole }) });
-    return NextResponse.json({ success: true });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
+    const access = await requireTeamOwner(request);
+    if ('response' in access) return access.response;
+    return NextResponse.json({ error: '成员邀请功能即将开放' }, { status: 410 });
+  } catch { return NextResponse.json({ error: '成员操作失败，请稍后重试' }, { status: 500 }); }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const u = await getRequestSession(request);
-    if (!u) return NextResponse.json({ error: '未登录' }, { status: 401 });
-    if (u.role !== 'super_admin' && u.role !== 'admin' && u.role !== 'owner') {
-      return NextResponse.json({ error: '无权限' }, { status: 403 });
-    }
-    const { userId, disabled } = await request.json();
-    const db = getDb();
-    await db.prepare(`UPDATE "User" SET status = CASE WHEN ? THEN 'disabled' ELSE 'active' END WHERE id = ? AND "companyId" = ?`)
-      .run(disabled, userId, u.companyId);
-    await writeAuditLog({ companyId: u.companyId, userId: u.id, action: disabled ? 'member_disabled' : 'member_enabled', targetId: userId });
-    return NextResponse.json({ success: true });
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
+    const access = await requireTeamOwner(request);
+    if ('response' in access) return access.response;
+    return NextResponse.json({ error: '成员邀请功能即将开放' }, { status: 410 });
+  } catch { return NextResponse.json({ error: '成员操作失败，请稍后重试' }, { status: 500 }); }
 }

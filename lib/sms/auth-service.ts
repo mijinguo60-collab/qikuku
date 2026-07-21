@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { getDb } from '@/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
+import { initializeTrialSubscriptionForCompany } from '@/lib/billing/plans';
 import { getSmsProvider } from './index';
 import { getSmsSecurityConfig, hashPhone, hashRequestIp, hashUserAgent, hashVerificationCode, maskPhone, phoneLast4, SMS_PURPOSE_LOGIN, verificationCodeMatches } from './security';
 import { SmsProviderError, type SmsProvider } from './types';
@@ -19,6 +20,37 @@ export type SmsAuthServiceDependencies = {
 };
 
 function asDate(value: Date | string) { return value instanceof Date ? value : new Date(value); }
+
+async function ensurePhoneLoginCompany(
+  tx: any,
+  input: { user: LoginUser; isNewUser: boolean },
+): Promise<LoginUser | null> {
+  const memberships = await tx
+    .prepare(`SELECT "companyId" FROM "CompanyMembership" WHERE "userId"=? AND status='active' ORDER BY "createdAt" ASC,id ASC LIMIT 2 FOR UPDATE`)
+    .all(input.user.id) as Array<{ companyId: string }>;
+
+  if (memberships.length > 1) return null;
+  if (memberships.length === 1) {
+    const companyId = memberships[0].companyId;
+    if (input.user.companyId !== companyId) {
+      await tx.prepare(`UPDATE "User" SET "companyId"=?,"updatedAt"=? WHERE id=?`).run(companyId, new Date().toISOString(), input.user.id);
+    }
+    return { ...input.user, companyId };
+  }
+
+  // A pre-existing User.companyId is only a cache and never proves membership.
+  // Invitation acceptance must establish a staff Membership before this founder
+  // branch is reached; invitation flow is intentionally not implemented here.
+  if (!input.isNewUser) return null;
+
+  const companyId = uuid();
+  const now = new Date().toISOString();
+  await tx.prepare(`INSERT INTO "Company" (id,name,plan,"createdAt") VALUES (?,?,?,?)`).run(companyId, '我的企业', 'trial', now);
+  await tx.prepare(`INSERT INTO "CompanyMembership" (id,"userId","companyId",role,status,"joinedAt","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?)`).run(uuid(), input.user.id, companyId, 'owner', 'active', now, now, now);
+  await tx.prepare(`UPDATE "User" SET "companyId"=?,"updatedAt"=? WHERE id=?`).run(companyId, now, input.user.id);
+  await initializeTrialSubscriptionForCompany({ companyId, source: 'COMPANY_ONBOARDING', userId: input.user.id, tx });
+  return { ...input.user, companyId };
+}
 
 async function lockPhone(tx: any, phoneHash: string) {
   // PostgreSQL serializes same-number requests across server instances.
@@ -143,15 +175,20 @@ export async function verifySmsLoginCode(
     if (identity && !user) user = await tx.prepare(`SELECT id,name,email,role,"companyId",status FROM "User" WHERE id=? FOR UPDATE`).get(identity.userId) as LoginUser | null;
     if (user && user.status !== 'active') return { ok: false, kind: 'login_rejected' };
     const timestamp = new Date().toISOString();
+    let isNewUser = false;
     if (!user) {
       const userId = uuid();
       await tx.prepare(`INSERT INTO "User" (id,name,"phoneE164","phoneVerifiedAt",status,role,"createdAt","updatedAt","lastLoginAt") VALUES (?,?,?,?,'active','member',?,?,?)`).run(userId, '企库库用户', phoneE164, timestamp, timestamp, timestamp, timestamp);
       user = { id: userId, name: '企库库用户', email: null, role: 'member', companyId: null, status: 'active' };
+      isNewUser = true;
     } else {
       await tx.prepare(`UPDATE "User" SET "phoneE164"=?,"phoneVerifiedAt"=?,"lastLoginAt"=?,"updatedAt"=? WHERE id=?`).run(phoneE164, timestamp, timestamp, timestamp, user.id);
     }
     if (identity) await tx.prepare(`UPDATE "AuthIdentity" SET "providerUserId"=?,"updatedAt"=? WHERE id=?`).run(phoneE164, timestamp, identity.id);
     else await tx.prepare(`INSERT INTO "AuthIdentity" (id,"userId",provider,"providerUserId","createdAt","updatedAt") VALUES (?,?, 'phone', ?,?,?)`).run(uuid(), user.id, phoneE164, timestamp, timestamp);
+    const resolvedUser = await ensurePhoneLoginCompany(tx, { user, isNewUser });
+    if (!resolvedUser) return { ok: false, kind: 'login_rejected' };
+    user = resolvedUser;
     return { ok: true, user };
   }).catch(() => ({ ok: false, kind: 'login_rejected' } as const));
   if (result.ok) await audit('SMS_LOGIN_SUCCEEDED', { ...auditValues, userId: result.user.id, companyId: result.user.companyId }, dependencies);

@@ -154,7 +154,8 @@ async function main() {
     verifySmsLoginCode,
   } = await import('../lib/sms/auth-service');
 
-  const { createServerSession } = await import('../lib/session');
+  const { createServerSession, getSessionForToken } = await import('../lib/session');
+  const { canAccessRoute } = await import('../lib/roles');
 
   const client = new Client({
     connectionString: target.directUrl,
@@ -165,6 +166,12 @@ async function main() {
     'SmsVerificationChallenge',
     'User',
     'AuthIdentity',
+    'Company',
+    'CompanyMembership',
+    'Subscription',
+    'CreditAccount',
+    'CreditGrant',
+    'CreditLedger',
     'UserSession',
     'AuditLog',
   ];
@@ -217,7 +224,9 @@ async function main() {
       );
 
       const sentCodes: Array<{ phoneE164: string; code: string }> = [];
-      const providerRequestId = `sms-db-test-${randomUUID()}`;
+      const providerRequestPrefix = `sms-db-test-${randomUUID()}`;
+      let providerRequestSequence = 0;
+      const providerRequestId = `${providerRequestPrefix}-1`;
 
       const provider = {
         async sendVerificationCode(input: {
@@ -226,7 +235,7 @@ async function main() {
         }) {
           sentCodes.push(input);
           return {
-            providerRequestId,
+            providerRequestId: `${providerRequestPrefix}-${++providerRequestSequence}`,
             providerStatusCode: 'Ok',
           };
         },
@@ -326,8 +335,9 @@ async function main() {
         throw new Error('正确验证码未完成登录');
       }
 
-      assert.equal(verifyResult.user.companyId, null);
+      assert.ok(verifyResult.user.companyId);
       assert.equal(verifyResult.user.status, 'active');
+      const companyId = verifyResult.user.companyId;
 
       const consumedChallenge = await client.query(
         `SELECT attempts, "consumedAt"
@@ -359,7 +369,7 @@ async function main() {
       assert.equal(createdUser.rows[0].phoneE164, phoneE164);
       assert.equal(createdUser.rows[0].status, 'active');
       assert.equal(createdUser.rows[0].role, 'member');
-      assert.equal(createdUser.rows[0].companyId, null);
+      assert.equal(createdUser.rows[0].companyId, companyId);
       assert.ok(createdUser.rows[0].phoneVerifiedAt);
       assert.ok(createdUser.rows[0].lastLoginAt);
 
@@ -375,6 +385,53 @@ async function main() {
       assert.equal(identity.rows[0].userId, verifyResult.user.id);
       assert.equal(identity.rows[0].provider, 'phone');
       assert.equal(identity.rows[0].providerUserId, phoneE164);
+
+      const company = await client.query(
+        `SELECT id, plan FROM "Company" WHERE id = $1`,
+        [companyId],
+      );
+      assert.equal(company.rowCount, 1);
+      assert.equal(company.rows[0].plan, 'trial');
+
+      const membership = await client.query(
+        `SELECT "userId", "companyId", role, status
+         FROM "CompanyMembership"
+         WHERE "userId" = $1 AND "companyId" = $2`,
+        [verifyResult.user.id, companyId],
+      );
+      assert.equal(membership.rowCount, 1);
+      assert.equal(membership.rows[0].role, 'owner');
+      assert.equal(membership.rows[0].status, 'active');
+
+      const subscription = await client.query(
+        `SELECT s.status, p.code AS "planCode"
+         FROM "Subscription" s
+         JOIN "Plan" p ON p.id = s."planId"
+         WHERE s."companyId" = $1`,
+        [companyId],
+      );
+      assert.equal(subscription.rowCount, 1);
+      assert.equal(subscription.rows[0].status, 'trialing');
+      assert.equal(subscription.rows[0].planCode, 'trial');
+
+      const creditAccount = await client.query(
+        `SELECT "totalBalance", "bonusBalance"
+         FROM "CreditAccount"
+         WHERE "companyId" = $1`,
+        [companyId],
+      );
+      assert.equal(creditAccount.rowCount, 1);
+      assert.equal(Number(creditAccount.rows[0].totalBalance), 3000);
+      assert.equal(Number(creditAccount.rows[0].bonusBalance), 3000);
+
+      const welcomeLedger = await client.query(
+        `SELECT amount, "idempotencyKey"
+         FROM "CreditLedger"
+         WHERE "companyId" = $1 AND "idempotencyKey" = $2`,
+        [companyId, `WELCOME:${companyId}`],
+      );
+      assert.equal(welcomeLedger.rowCount, 1);
+      assert.equal(Number(welcomeLedger.rows[0].amount), 3000);
 
       const replayResult = await verifySmsLoginCode(
         phoneE164,
@@ -392,11 +449,9 @@ async function main() {
         id: verifyResult.user.id,
         name: verifyResult.user.name,
         email: verifyResult.user.email ?? '',
-        role: verifyResult.user.role,
-        companyId: verifyResult.user.companyId ?? '',
       }, db);
 
-      assert.equal(session.activeCompanyId, null);
+      assert.equal(session.activeCompanyId, companyId);
       assert.ok(session.token);
       assert.ok(session.expiresAt);
 
@@ -409,17 +464,217 @@ async function main() {
 
       assert.equal(sessionRow.rowCount, 1);
       assert.equal(sessionRow.rows[0].userId, verifyResult.user.id);
-      assert.equal(sessionRow.rows[0].activeCompanyId, null);
+      assert.equal(sessionRow.rows[0].activeCompanyId, companyId);
+      const founderSession = await getSessionForToken(session.token, db);
+      assert.equal(founderSession?.role, 'owner');
+      assert.equal(founderSession?.platformRole, 'member');
+      const founderClaims = JSON.parse(Buffer.from(session.token.split('.')[0], 'base64url').toString('utf8'));
+      assert.equal(founderClaims.role, 'owner');
+      assert.equal(founderClaims.platformRole, 'member');
+      assert.equal(canAccessRoute('owner', '/api/team'), true);
+
+      await client.query(
+        `UPDATE "SmsVerificationChallenge"
+         SET "createdAt" = NOW() - INTERVAL '61 seconds'
+         WHERE "providerRequestId" = $1`,
+        [providerRequestId],
+      );
+
+      const secondCode = '654322';
+      const secondSendResult = await requestSmsLoginCode(
+        phoneE164,
+        metadata,
+        secondCode,
+        dependencies,
+      );
+      assert.equal(secondSendResult.ok, true);
+      assert.equal(sentCodes.length, 2);
+
+      const secondVerifyResult = await verifySmsLoginCode(
+        phoneE164,
+        secondCode,
+        metadata,
+        dependencies,
+      );
+      assert.equal(secondVerifyResult.ok, true);
+      if (!secondVerifyResult.ok) throw new Error('第二次验证码未完成登录');
+      assert.equal(secondVerifyResult.user.id, verifyResult.user.id);
+      assert.equal(secondVerifyResult.user.companyId, companyId);
+
+      const secondSession = await createServerSession({
+        id: secondVerifyResult.user.id,
+        name: secondVerifyResult.user.name,
+        email: secondVerifyResult.user.email ?? '',
+      }, db);
+      assert.equal(secondSession.activeCompanyId, companyId);
+
+      const staffMainlandPhone = `198${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
+      const staffPhoneE164 = `+86${staffMainlandPhone}`;
+      const staffUserId = randomUUID();
+      const staffCompanyId = randomUUID();
+      const staffNow = new Date().toISOString();
+      await client.query(
+        `INSERT INTO "Company" (id,name,plan,"createdAt") VALUES ($1,$2,$3,$4)`,
+        [staffCompanyId, '短信认证员工测试企业', 'free', staffNow],
+      );
+      await client.query(
+        `INSERT INTO "User" (id,name,"phoneE164",status,role,"createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [staffUserId, '短信认证员工', staffPhoneE164, 'active', 'member', staffNow, staffNow],
+      );
+      await client.query(
+        `INSERT INTO "CompanyMembership" (id,"userId","companyId",role,status,"joinedAt","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [randomUUID(), staffUserId, staffCompanyId, 'member', 'active', staffNow, staffNow, staffNow],
+      );
+
+      const staffSendResult = await requestSmsLoginCode(staffPhoneE164, metadata, '654323', dependencies);
+      assert.equal(staffSendResult.ok, true);
+      const staffVerifyResult = await verifySmsLoginCode(staffPhoneE164, '654323', metadata, dependencies);
+      assert.equal(staffVerifyResult.ok, true);
+      if (!staffVerifyResult.ok) throw new Error('员工验证码未完成登录');
+      assert.equal(staffVerifyResult.user.id, staffUserId);
+      assert.equal(staffVerifyResult.user.companyId, staffCompanyId);
+
+      const staffAfterLogin = await client.query(
+        `SELECT u."companyId",m.role,m.status,
+          (SELECT COUNT(*)::int FROM "Subscription" WHERE "companyId"=$2) AS "subscriptionCount",
+          (SELECT COUNT(*)::int FROM "CreditAccount" WHERE "companyId"=$2) AS "creditAccountCount",
+          (SELECT COUNT(*)::int FROM "CreditLedger" WHERE "companyId"=$2) AS "creditLedgerCount"
+         FROM "User" u
+         JOIN "CompanyMembership" m ON m."userId"=u.id AND m."companyId"=$2
+         WHERE u.id=$1`,
+        [staffUserId, staffCompanyId],
+      );
+      assert.equal(staffAfterLogin.rowCount, 1);
+      assert.equal(staffAfterLogin.rows[0].companyId, staffCompanyId);
+      assert.equal(staffAfterLogin.rows[0].role, 'member');
+      assert.equal(staffAfterLogin.rows[0].status, 'active');
+      assert.equal(Number(staffAfterLogin.rows[0].subscriptionCount), 0);
+      assert.equal(Number(staffAfterLogin.rows[0].creditAccountCount), 0);
+      assert.equal(Number(staffAfterLogin.rows[0].creditLedgerCount), 0);
+
+      const staffSession = await createServerSession({
+        id: staffVerifyResult.user.id,
+        name: staffVerifyResult.user.name,
+        email: staffVerifyResult.user.email ?? '',
+      }, db);
+      assert.equal(staffSession.activeCompanyId, staffCompanyId);
+      const activeStaffSession = await getSessionForToken(staffSession.token, db);
+      assert.equal(activeStaffSession?.role, 'member');
+      assert.equal(activeStaffSession?.platformRole, 'member');
+      assert.equal(canAccessRoute('member', '/api/team'), false);
+      await client.query(`UPDATE "CompanyMembership" SET status='disabled',"updatedAt"=$1 WHERE "userId"=$2 AND "companyId"=$3`, [new Date().toISOString(), staffUserId, staffCompanyId]);
+      assert.equal(await getSessionForToken(staffSession.token, db), null);
+
+      const orphanMainlandPhone = `197${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
+      const orphanPhoneE164 = `+86${orphanMainlandPhone}`;
+      const orphanUserId = randomUUID();
+      const orphanCompanyId = randomUUID();
+      const orphanNow = new Date().toISOString();
+      await client.query(
+        `INSERT INTO "Company" (id,name,plan,"createdAt") VALUES ($1,$2,$3,$4)`,
+        [orphanCompanyId, '短信认证孤立用户企业', 'free', orphanNow],
+      );
+      await client.query(
+        `INSERT INTO "User" (id,name,"phoneE164",status,role,"companyId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [orphanUserId, '短信认证孤立用户', orphanPhoneE164, 'active', 'member', orphanCompanyId, orphanNow, orphanNow],
+      );
+
+      const orphanSendResult = await requestSmsLoginCode(orphanPhoneE164, metadata, '654324', dependencies);
+      assert.equal(orphanSendResult.ok, true);
+      const orphanVerifyResult = await verifySmsLoginCode(orphanPhoneE164, '654324', metadata, dependencies);
+      assert.deepEqual(orphanVerifyResult, { ok: false, kind: 'login_rejected' });
+
+      const orphanAfterLogin = await client.query(
+        `SELECT
+          (SELECT COUNT(*)::int FROM "CompanyMembership" WHERE "userId"=$1) AS "membershipCount",
+          (SELECT COUNT(*)::int FROM "CreditAccount" WHERE "companyId"=$2) AS "creditAccountCount",
+          (SELECT COUNT(*)::int FROM "CreditLedger" WHERE "companyId"=$2) AS "creditLedgerCount"`,
+        [orphanUserId, orphanCompanyId],
+      );
+      assert.equal(Number(orphanAfterLogin.rows[0].membershipCount), 0);
+      assert.equal(Number(orphanAfterLogin.rows[0].creditAccountCount), 0);
+      assert.equal(Number(orphanAfterLogin.rows[0].creditLedgerCount), 0);
+      await assert.rejects(
+        () => createServerSession({ id: orphanUserId, name: '短信认证孤立用户', email: '' }, db),
+        /企业归属异常/,
+      );
+
+      const multiMainlandPhone = `196${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
+      const multiPhoneE164 = `+86${multiMainlandPhone}`;
+      const multiUserId = randomUUID();
+      const firstMultiCompanyId = randomUUID();
+      const secondMultiCompanyId = randomUUID();
+      const multiNow = new Date().toISOString();
+      await client.query(
+        `INSERT INTO "Company" (id,name,plan,"createdAt") VALUES ($1,$2,$3,$4),($5,$6,$7,$8)`,
+        [firstMultiCompanyId, '短信认证多企业一', 'free', multiNow, secondMultiCompanyId, '短信认证多企业二', 'free', multiNow],
+      );
+      await client.query(
+        `INSERT INTO "User" (id,name,"phoneE164",status,role,"companyId","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [multiUserId, '短信认证多企业用户', multiPhoneE164, 'active', 'member', firstMultiCompanyId, multiNow, multiNow],
+      );
+      await client.query(
+        `INSERT INTO "CompanyMembership" (id,"userId","companyId",role,status,"joinedAt","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [randomUUID(), multiUserId, firstMultiCompanyId, 'member', 'active', multiNow, multiNow, multiNow],
+      );
+      const multiInitialSession = await createServerSession({ id: multiUserId, name: '短信认证多企业用户', email: '' }, db);
+      assert.equal((await getSessionForToken(multiInitialSession.token, db))?.companyId, firstMultiCompanyId);
+      await client.query(
+        `INSERT INTO "CompanyMembership" (id,"userId","companyId",role,status,"joinedAt","createdAt","updatedAt") VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [randomUUID(), multiUserId, secondMultiCompanyId, 'member', 'active', multiNow, multiNow, multiNow],
+      );
+
+      const multiSendResult = await requestSmsLoginCode(multiPhoneE164, metadata, '654325', dependencies);
+      assert.equal(multiSendResult.ok, true);
+      const multiVerifyResult = await verifySmsLoginCode(multiPhoneE164, '654325', metadata, dependencies);
+      assert.deepEqual(multiVerifyResult, { ok: false, kind: 'login_rejected' });
+
+      const multiAfterLogin = await client.query(
+        `SELECT
+          (SELECT COUNT(*)::int FROM "CompanyMembership" WHERE "userId"=$1 AND status='active') AS "membershipCount",
+          (SELECT COUNT(*)::int FROM "UserSession" WHERE "userId"=$1) AS "sessionCount",
+          "companyId"
+         FROM "User" WHERE id=$1`,
+        [multiUserId],
+      );
+      assert.equal(Number(multiAfterLogin.rows[0].membershipCount), 2);
+      assert.equal(Number(multiAfterLogin.rows[0].sessionCount), 1);
+      assert.equal(multiAfterLogin.rows[0].companyId, firstMultiCompanyId);
+      assert.equal(await getSessionForToken(multiInitialSession.token, db), null);
+      await assert.rejects(
+        () => createServerSession({ id: multiUserId, name: '短信认证多企业用户', email: '' }, db),
+        /企业归属异常/,
+      );
+
+      const sameCompanyDuplicateDb = {
+        prepare(sql: string) {
+          return {
+            async get() { return sql.includes('FROM "User"') ? { status: 'active', role: 'member' } : null; },
+            async all() { return [{ companyId: 'same-company', role: 'member' }, { companyId: 'same-company', role: 'member' }]; },
+            async run() { throw new Error('重复 Membership 不得创建 Session'); },
+          };
+        },
+      };
+      await assert.rejects(
+        () => createServerSession({ id: 'same-company-duplicate-user', name: '重复归属用户', email: '' }, sameCompanyDuplicateDb),
+        /企业归属异常/,
+      );
 
       const during = await snapshotCounts(client, trackedTables);
 
       assert.equal(
         during.SmsVerificationChallenge,
-        before.SmsVerificationChallenge + 1,
+        before.SmsVerificationChallenge + 5,
       );
-      assert.equal(during.User, before.User + 1);
-      assert.equal(during.AuthIdentity, before.AuthIdentity + 1);
-      assert.equal(during.UserSession, before.UserSession + 1);
+      assert.equal(during.User, before.User + 4);
+      assert.equal(during.AuthIdentity, before.AuthIdentity + 4);
+      assert.equal(during.Company, before.Company + 5);
+      assert.equal(during.CompanyMembership, before.CompanyMembership + 4);
+      assert.equal(during.Subscription, before.Subscription + 1);
+      assert.equal(during.CreditAccount, before.CreditAccount + 1);
+      assert.equal(during.CreditGrant, before.CreditGrant + 1);
+      assert.equal(during.CreditLedger, before.CreditLedger + 1);
+      assert.equal(during.UserSession, before.UserSession + 4);
       assert.equal(
         during.AuditLog,
         before.AuditLog,
@@ -435,7 +690,18 @@ async function main() {
           codeConsumedOnce: true,
           userCreated: true,
           identityBound: true,
+          companyCreated: true,
+          trialInitialized: true,
+          welcomeCreditsGranted: true,
           sessionCreated: true,
+          repeatLoginDidNotDuplicateBusinessData: true,
+          existingStaffMembershipReused: true,
+          orphanUserRejectedWithoutOwnerRepair: true,
+          multiMembershipUserRejectedWithoutSelection: true,
+          differentCompanyDuplicateInvalidatesOldSession: true,
+          disabledMembershipInvalidatesOldSession: true,
+          sessionRequiresExactlyOneActiveMembership: true,
+          sameCompanyDuplicateMembershipRejected: true,
         },
         during,
       }, null, 2));

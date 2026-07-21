@@ -9,7 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect('/auth/login');
   const membership = await getActiveMembershipForUser(session.id, session.activeCompanyId);
   if (!membership) redirect('/onboarding');
-  const userRole = session?.role || '';
+  const userRole = membership.role || '';
 
   return (
     <CreditBalanceProvider><div className="flex min-h-screen bg-surface-primary">

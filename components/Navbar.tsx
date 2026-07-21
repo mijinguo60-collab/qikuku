@@ -37,7 +37,7 @@ export default function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           <Link href="/auth/login" className="btn-ghost text-[13px]">登录</Link>
-          <Link href="/auth/register" className="btn-primary text-[13px]">开始使用</Link>
+          <Link href="/auth/login" className="btn-primary text-[13px]">开始使用</Link>
         </div>
 
         <button className="md:hidden p-2" onClick={() => setOpen(!open)}>
@@ -58,7 +58,7 @@ export default function Navbar() {
           ))}
           <hr className="my-2 border-border-light" />
           <Link href="/auth/login" className="btn-secondary text-center text-sm">登录</Link>
-          <Link href="/auth/register" className="btn-primary text-center text-sm">开始使用</Link>
+          <Link href="/auth/login" className="btn-primary text-center text-sm">开始使用</Link>
         </div>
       )}
     </nav>

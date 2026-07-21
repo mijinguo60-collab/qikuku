@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Play, Database, Brain, MessageSquare, FileText } from 'lucide-react';
+import { ArrowRight, Play, Brain, FileText } from 'lucide-react';
 
 export default function Hero() {
   return (
@@ -16,7 +16,7 @@ export default function Hero() {
           企库库帮助企业沉淀资料、统一话术、训练员工、辅助管理决策，并用 AI 生成企业所需的图文内容。
         </p>
         <div className="flex items-center justify-center gap-3">
-          <Link href="/auth/register" className="btn-primary text-[15px] px-6 py-3 rounded-xl flex items-center gap-2">
+          <Link href="/auth/login" className="btn-primary text-[15px] px-6 py-3 rounded-xl flex items-center gap-2">
             创建企业知识库 <ArrowRight className="w-4 h-4" />
           </Link>
           <Link href="#demo" className="btn-secondary text-[15px] px-6 py-3 rounded-xl flex items-center gap-2">
