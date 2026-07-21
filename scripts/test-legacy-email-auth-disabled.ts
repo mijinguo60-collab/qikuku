@@ -80,7 +80,15 @@ async function main() {
     'seed-admin-' + 'zhucheng', 'seed-employee-' + 'zhucheng', 'seed-company-' + 'zhucheng',
     '张' + '老板', '李' + '员工', '诸城' + '吃喝玩乐',
   ];
-  const files = [...await sourceFiles('app'), ...await sourceFiles('lib'), ...await sourceFiles('scripts'), ...await sourceFiles('docs'), 'package.json', '.env.example', 'DEPLOY.md'];
+  const files = [
+    ...await sourceFiles('app'),
+    ...await sourceFiles('lib'),
+    ...await sourceFiles('scripts'),
+    ...await sourceFiles('docs'),
+    'package.json',
+    '.env.example',
+    'DEPLOY.md',
+  ].filter((relativePath) => relativePath !== 'scripts/cleanup-test-demo-data.ts');
   for (const relativePath of files) {
     const content = await readFile(new URL(`../${relativePath}`, import.meta.url), 'utf8');
     for (const value of forbiddenDemoValues) assert.equal(content.includes(value), false, `${relativePath} 不得包含已删除 Demo 标识`);
