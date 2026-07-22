@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { hashLoginPassword, validateLoginPassword } from '@/lib/auth/password';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@/lib/auth/password-policy';
 import { PhoneRegistrationError, resetPhonePassword } from '@/lib/auth/phone-registration';
 import { normalizeMainlandPhone } from '@/lib/sms/security';
 
-const inputSchema = z.object({ phone: z.string().max(32), code: z.string().regex(/^\d{6}$/), password: z.string().min(8).max(128), confirmPassword: z.string().min(8).max(128) })
+const inputSchema = z.object({ phone: z.string().max(32), code: z.string().regex(/^\d{6}$/), password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH), confirmPassword: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH) })
   .refine((value) => value.password === value.confirmPassword, { path: ['confirmPassword'], message: '两次密码输入不一致' });
 
 export async function POST(request: NextRequest) {

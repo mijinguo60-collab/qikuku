@@ -595,6 +595,7 @@ model SmsVerificationChallenge {
   updatedAt          DateTime  @updatedAt
 
   @@index([phoneHash, purpose, createdAt])
+  @@index([phoneHash, createdAt])
   @@index([expiresAt])
   @@index([consumedAt])
   @@index([providerRequestId])

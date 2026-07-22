@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { hashLoginPassword, validateLoginPassword } from '@/lib/auth/password';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from '@/lib/auth/password-policy';
 import { PhoneRegistrationError, registerPhoneEnterprise } from '@/lib/auth/phone-registration';
 import { normalizeMainlandPhone } from '@/lib/sms/security';
 import { setSessionCookie } from '@/lib/session';
@@ -8,7 +9,7 @@ import { setSessionCookie } from '@/lib/session';
 const text = z.string().trim().min(2).max(80).refine((value) => value !== '企业库用户' && value !== '企库库用户', '请填写真实信息');
 const inputSchema = z.object({
   phone: z.string().max(32), code: z.string().regex(/^\d{6}$/), companyName: text, personalName: text,
-  password: z.string().min(8).max(128), confirmPassword: z.string().min(8).max(128), agreed: z.literal(true), rememberMe: z.boolean().optional().default(true),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH), confirmPassword: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH), agreed: z.literal(true), rememberMe: z.boolean().optional().default(true),
 }).refine((value) => value.password === value.confirmPassword, { path: ['confirmPassword'], message: '两次密码输入不一致' });
 
 export async function POST(request: NextRequest) {

@@ -3,8 +3,8 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { getDb } from '@/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
 import { createServerSessionForVerifiedMembership, type CreatedServerSession } from '@/lib/session';
+import { validateLoginPasswordValue } from './password-policy';
 
-const PASSWORD_MIN_LENGTH = 8;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 const REQUEST_WINDOW_MS = 15 * 60 * 1000;
@@ -28,9 +28,7 @@ function limitHash(scope: string, value: string) {
 }
 
 export function validateLoginPassword(password: string): string | null {
-  if (password.length < PASSWORD_MIN_LENGTH || password.length > 128) return '密码长度需为 8 至 128 位';
-  const groups = [/[a-z]/.test(password), /[A-Z]/.test(password), /\d/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length;
-  return groups >= 2 ? null : '密码需至少包含两种字符类型';
+  return validateLoginPasswordValue(password);
 }
 
 export async function hashLoginPassword(password: string) {

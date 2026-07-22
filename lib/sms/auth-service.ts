@@ -24,6 +24,24 @@ type ChallengeRow = { id: string; codeHash: string; expiresAt: Date | string; at
 export const SMS_GLOBAL_PHONE_HOURLY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?`;
 export const SMS_GLOBAL_PHONE_DAILY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?`;
 
+// One statement intentionally performs all four rate-limit reads while the
+// advisory lock is held. A PostgreSQL transaction is bound to one client, so
+// this avoids three transatlantic request/response waits without weakening any
+// quota scope.
+export const SMS_RATE_LIMIT_CHECK_SQL = `
+  SELECT
+    EXISTS(
+      SELECT 1 FROM "SmsVerificationChallenge"
+      WHERE "phoneHash"=? AND purpose=? AND "createdAt">?
+    ) AS "cooldownHit",
+    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?) AS "phoneHourlyCount",
+    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?) AS "phoneDailyCount",
+    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "requestIpHash"=? AND "createdAt">?) AS "ipHourlyCount"
+`;
+
+export type SmsRateLimitReason = 'resend_cooldown' | 'phone_hourly_limit' | 'phone_daily_limit' | 'ip_hourly_limit' | 'provider_rate_limited';
+type SmsRateLimitCheck = { cooldownHit: boolean; phoneHourlyCount: number; phoneDailyCount: number; ipHourlyCount: number };
+
 export type SmsSendCodeResult = { ok: true; maskedPhone: string } | { ok: false; kind: 'configuration' | 'rate_limited' | 'send_failed' };
 
 export type SmsAuthServiceDependencies = {
@@ -33,6 +51,27 @@ export type SmsAuthServiceDependencies = {
 };
 
 function asDate(value: Date | string) { return value instanceof Date ? value : new Date(value); }
+
+function getRateLimitReason(check: SmsRateLimitCheck, config: NonNullable<ReturnType<typeof getSmsSecurityConfig>>) {
+  if (check.cooldownHit) return 'resend_cooldown' as const;
+  if (check.phoneHourlyCount >= config.phoneHourlyLimit) return 'phone_hourly_limit' as const;
+  if (check.phoneDailyCount >= config.phoneDailyLimit) return 'phone_daily_limit' as const;
+  if (check.ipHourlyCount >= config.ipHourlyLimit) return 'ip_hourly_limit' as const;
+  return null;
+}
+
+function logSmsRateLimit(reason: SmsRateLimitReason, check: SmsRateLimitCheck, startedAt: number) {
+  if (process.env.NODE_ENV !== 'development') return;
+  // Structured diagnostics deliberately exclude phone, codes and all hashes.
+  console.info('[SMS] challenge rate limited', {
+    limitReason: reason,
+    cooldownHit: check.cooldownHit,
+    phoneHourlyCount: check.phoneHourlyCount,
+    phoneDailyCount: check.phoneDailyCount,
+    ipHourlyCount: check.ipHourlyCount,
+    durationMs: Math.round(performance.now() - startedAt),
+  });
+}
 
 async function lockPhone(tx: any, phoneHash: string) {
   // PostgreSQL serializes same-number requests across server instances.
@@ -75,38 +114,36 @@ export async function issueSmsChallenge(
   const ipHash = hashRequestIp(config.pepper, metadata.ip);
   const userAgentHash = hashUserAgent(config.pepper, metadata.userAgent || 'unknown');
   const now = new Date();
+  const startedAt = performance.now();
   const challengeId = randomUUID();
   const auditValues = { phoneHash, phoneLast4: phoneLast4(phoneE164), ipHash, userAgentHash };
 
   try {
-    const allowed = await db.transactionAsync(async (tx: any) => {
+    const rateLimit = await db.transactionAsync(async (tx: any) => {
       await lockPhone(tx, phoneHash);
       const cooldownAt = new Date(now.getTime() - config.resendCooldownSeconds * 1000).toISOString();
       const hourAt = new Date(now.getTime() - 3600_000).toISOString();
       const dayAt = new Date(now.getTime() - 86_400_000).toISOString();
-      // A PostgreSQL transaction uses one client connection. Run these checks
-      // sequentially instead of issuing concurrent queries on the same client.
-      const cooldown = await tx
-        .prepare(`SELECT id FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND purpose=? AND "createdAt">? ORDER BY "createdAt" DESC LIMIT 1`)
-        .get(phoneHash, purpose, cooldownAt);
-
-      const phoneHourly = await tx
-        .prepare(SMS_GLOBAL_PHONE_HOURLY_LIMIT_SQL)
-        .get(phoneHash, hourAt);
-
-      const phoneDaily = await tx
-        .prepare(SMS_GLOBAL_PHONE_DAILY_LIMIT_SQL)
-        .get(phoneHash, dayAt);
-
-      const ipHourly = await tx
-        .prepare(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "requestIpHash"=? AND "createdAt">?`)
-        .get(ipHash, hourAt);
-      if (cooldown || Number(phoneHourly?.count || 0) >= config.phoneHourlyLimit || Number(phoneDaily?.count || 0) >= config.phoneDailyLimit || Number(ipHourly?.count || 0) >= config.ipHourlyLimit) return false;
+      const row = await tx.prepare(SMS_RATE_LIMIT_CHECK_SQL).get(
+        phoneHash, purpose, cooldownAt,
+        phoneHash, hourAt,
+        phoneHash, dayAt,
+        ipHash, hourAt,
+      );
+      const check: SmsRateLimitCheck = {
+        cooldownHit: Boolean(row?.cooldownHit),
+        phoneHourlyCount: Number(row?.phoneHourlyCount || 0),
+        phoneDailyCount: Number(row?.phoneDailyCount || 0),
+        ipHourlyCount: Number(row?.ipHourlyCount || 0),
+      };
+      const reason = getRateLimitReason(check, config);
+      if (reason) return { allowed: false as const, reason, check };
       await tx.prepare(`INSERT INTO "SmsVerificationChallenge" (id,"phoneHash","phoneLast4",purpose,"codeHash","expiresAt",attempts,"maxAttempts","sendStatus","requestIpHash","userAgentHash","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
         .run(challengeId, phoneHash, phoneLast4(phoneE164), purpose, hashVerificationCode(config.pepper, phoneE164, purpose, code), new Date(now.getTime() + config.ttlSeconds * 1000).toISOString(), 0, config.maxVerifyAttempts, 'PENDING', ipHash, userAgentHash, now.toISOString(), now.toISOString());
-      return true;
+      return { allowed: true as const };
     });
-    if (!allowed) {
+    if (!rateLimit.allowed) {
+      logSmsRateLimit(rateLimit.reason, rateLimit.check, startedAt);
       await audit('SMS_CODE_REQUESTED', { ...auditValues, failureCategory: 'rate_limited' }, dependencies);
       return { ok: false, kind: 'rate_limited' };
     }
@@ -128,7 +165,10 @@ export async function issueSmsChallenge(
     await db.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='FAILED',"failureCategory"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(failureCategory, error instanceof SmsProviderError ? error.providerStatusCode || null : null, new Date().toISOString(), challengeId).catch(() => {});
     await audit('SMS_CODE_SEND_FAILED', { ...auditValues, failureCategory }, dependencies);
     if (error instanceof SmsProviderError && error.category === 'configuration') return { ok: false, kind: 'configuration' };
-    if (error instanceof SmsProviderError && error.category === 'rate_limited') return { ok: false, kind: 'rate_limited' };
+    if (error instanceof SmsProviderError && error.category === 'rate_limited') {
+      if (process.env.NODE_ENV === 'development') console.info('[SMS] challenge rate limited', { limitReason: 'provider_rate_limited', durationMs: Math.round(performance.now() - startedAt) });
+      return { ok: false, kind: 'rate_limited' };
+    }
     return { ok: false, kind: 'send_failed' };
   }
 }

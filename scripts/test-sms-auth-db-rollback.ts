@@ -54,9 +54,11 @@ function testDb(client: Client) {
 
 const tables = ['SmsVerificationChallenge', 'User', 'AuthIdentity', 'PasswordCredential', 'PasswordLoginAttempt', 'Company', 'CompanyMembership', 'Subscription', 'CreditAccount', 'CreditGrant', 'CreditLedger', 'UserSession', 'AuditLog'];
 async function counts(client: Client): Promise<Counts> {
-  const result: Counts = {};
-  for (const table of tables) result[table] = Number((await client.query(`SELECT COUNT(*)::text AS count FROM "${table}"`)).rows[0].count);
-  return result;
+  // The test runs against a geographically remote development database. Keep
+  // the exact fixed whitelist but collect all table counts in one round-trip.
+  const sql = tables.map((table) => `SELECT '${table}' AS table_name, COUNT(*)::text AS count FROM "${table}"`).join(' UNION ALL ');
+  const rows = await client.query(sql);
+  return Object.fromEntries(rows.rows.map((row) => [row.table_name, Number(row.count)]));
 }
 
 async function main() {
@@ -80,6 +82,7 @@ async function main() {
     const { registerPhoneEnterprise, resetPhonePassword, PhoneRegistrationError } = await import('../lib/auth/phone-registration');
     const { authenticateWithPhonePassword, hashLoginPassword } = await import('../lib/auth/password');
     const { getSessionForToken } = await import('../lib/session');
+    const { hashPhone } = await import('../lib/sms/security');
     const number = `199${String(randomInt(0, 100_000_000)).padStart(8, '0')}`;
     const phoneE164 = `+86${number}`;
     const metadata = { ip: '203.0.113.42', userAgent: 'phone-password-auth-db-test' };
@@ -101,7 +104,8 @@ async function main() {
     assert.deepEqual(await authenticateWithPhonePassword(phoneE164, 'wrong-password', metadata, db, noAudit as any), { ok: false, kind: 'invalid_credentials' });
     const passwordLogin = await authenticateWithPhonePassword(phoneE164, 'SafePassw0rd!', metadata, db, noAudit as any);
     assert.equal(passwordLogin.ok, true);
-    assert.equal((await client.query(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE purpose='REGISTER'`,)).rows[0].count, 1, '日常密码登录不得新增短信');
+    const testPhoneHash = hashPhone(process.env.SMS_CODE_PEPPER!, phoneE164);
+    assert.equal((await client.query(`SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE purpose='REGISTER' AND "phoneHash"=$1`, [testPhoneHash])).rows[0].count, 1, '日常密码登录不得新增短信');
     assert.equal((await getSessionForToken(registration.session.token, db))?.role, 'owner');
     progress('password-login-complete');
 
