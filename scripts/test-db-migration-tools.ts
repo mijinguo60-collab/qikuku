@@ -26,6 +26,7 @@ async function main() {
   assert.match(migrate, /pg_dump/);
   assert.match(migrate, /pg_restore/);
   assert.match(migrate, /TARGET_DATABASE_SSL_CA_PATH/);
+  assert.match(migrate, /sslrootcert=system/);
   assert.match(migrate, /PGSERVICEFILE/);
   assert.match(migrate, /PGPASSFILE/);
   assert.doesNotMatch(migrate, /pg_dump --dbname="\$SOURCE_DATABASE_URL"/);
