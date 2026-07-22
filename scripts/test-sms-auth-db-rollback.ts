@@ -22,7 +22,7 @@ type Counts = Record<string, number>;
 
 function safeTarget() {
   if (process.env.SMS_AUTH_DB_ROLLBACK_TEST !== '1') throw new Error('SMS_AUTH_DB_ROLLBACK_TEST 必须显式设置为 1');
-  const directUrl = process.env.DATABASE_DIRECT_URL;
+  const directUrl = process.env.TEST_DATABASE_DIRECT_URL || process.env.DATABASE_DIRECT_URL;
   if (!directUrl) throw new Error('DATABASE_DIRECT_URL is required');
   const parsed = new URL(directUrl);
   if (parsed.hostname !== REQUIRED_ENDPOINT || parsed.hostname.includes(FORBIDDEN_ENDPOINT) || parsed.hostname.includes('pooler')) throw new Error('仅允许使用指定 Neon 测试分支 direct endpoint');

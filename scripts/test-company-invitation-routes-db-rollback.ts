@@ -41,7 +41,7 @@ async function counts(client: Client) {
 
 async function main() {
   if (process.env.COMPANY_INVITATION_ROUTES_DB_ROLLBACK_TEST !== '1') throw new Error('route rollback flag required');
-  const directUrl = process.env.DATABASE_DIRECT_URL || '';
+  const directUrl = process.env.TEST_DATABASE_DIRECT_URL || process.env.DATABASE_DIRECT_URL || '';
   if (new URL(directUrl).hostname !== ENDPOINT) throw new Error('拒绝非测试数据库');
   const { NextRequest } = await import('next/server');
   const { withServerTestDb } = await import('../lib/db');

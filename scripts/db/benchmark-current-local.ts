@@ -32,6 +32,7 @@ function main() {
     env: {
       ...process.env,
       ...(source ? { BENCHMARK_DATABASE_URL: latestNeonBackup() } : {}),
+      ...(source ? { NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --no-network-family-autoselection --dns-result-order=ipv4first`.trim() } : {}),
     },
   });
   if (result.error) throw result.error;

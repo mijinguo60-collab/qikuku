@@ -51,7 +51,13 @@ async function main() {
   assert.match(localBenchmark, /latestNeonBackup/);
   assert.match(localBenchmark, /--source/);
   assert.match(localBenchmark, /--domestic/);
+  assert.match(localBenchmark, /dns-result-order=ipv4first/);
   assert.doesNotMatch(localBenchmark, /console\.log\(.*DATABASE/);
+  const neonRollbackRunner = await readFile(path.join(root, 'scripts/run-neon-rollback-test.ts'), 'utf8');
+  assert.match(neonRollbackRunner, /allowedScripts/);
+  assert.match(neonRollbackRunner, /ep-snowy-tooth-ata0virv\.c-9\.us-east-1\.aws\.neon\.tech/);
+  assert.match(neonRollbackRunner, /TEST_DATABASE_DIRECT_URL/);
+  assert.doesNotMatch(neonRollbackRunner, /console\.log\(.*DATABASE/);
   assert.doesNotMatch(localMigrator, /console\.log\(.*DATABASE/);
   assert.match(migrate, /Unsafe source\/target endpoints/);
   console.log('domestic PostgreSQL migration tool safety tests passed');

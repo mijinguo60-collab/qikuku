@@ -54,7 +54,7 @@ async function counts(client: Client) {
 
 async function main() {
   if (process.env.COMPANY_INVITATIONS_DB_ROLLBACK_TEST !== '1') throw new Error('COMPANY_INVITATIONS_DB_ROLLBACK_TEST 必须为 1');
-  const direct = process.env.DATABASE_DIRECT_URL;
+  const direct = process.env.TEST_DATABASE_DIRECT_URL || process.env.DATABASE_DIRECT_URL;
   if (!direct) throw new Error('DATABASE_DIRECT_URL 缺失');
   const host = new URL(direct).hostname;
   if (host !== REQUIRED_ENDPOINT || host.includes(FORBIDDEN_ENDPOINT)) throw new Error('拒绝非测试数据库');
