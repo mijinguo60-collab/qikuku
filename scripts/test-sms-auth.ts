@@ -5,7 +5,7 @@ import {
   hashPhone,
   hashVerificationCode,
   normalizeMainlandPhone,
-  SMS_PURPOSE_LOGIN,
+  SMS_PURPOSE_REGISTER,
   verificationCodeMatches,
 } from '../lib/sms/security';
 import { MockSmsProvider } from '../lib/sms/mock';
@@ -28,11 +28,11 @@ async function main() {
   for (let index = 0; index < 200; index += 1) assert.match(generateVerificationCode(), /^[1-9]\d{5}$/);
   const code = '123456';
   const phoneHash = hashPhone(pepper, '+8613812345678');
-  const codeHash = hashVerificationCode(pepper, '+8613812345678', SMS_PURPOSE_LOGIN, code);
+  const codeHash = hashVerificationCode(pepper, '+8613812345678', SMS_PURPOSE_REGISTER, code);
   assert.notEqual(codeHash, code);
   assert.equal(codeHash.includes(code), false);
-  assert.equal(verificationCodeMatches(codeHash, hashVerificationCode(pepper, '+8613812345678', SMS_PURPOSE_LOGIN, code)), true);
-  assert.equal(verificationCodeMatches(codeHash, hashVerificationCode(pepper, '+8613812345678', SMS_PURPOSE_LOGIN, '654321')), false);
+  assert.equal(verificationCodeMatches(codeHash, hashVerificationCode(pepper, '+8613812345678', SMS_PURPOSE_REGISTER, code)), true);
+  assert.equal(verificationCodeMatches(codeHash, hashVerificationCode(pepper, '+8613812345678', SMS_PURPOSE_REGISTER, '654321')), false);
   assert.match(phoneHash, /^[a-f0-9]{64}$/);
 
   const config = getSmsSecurityConfig();

@@ -3,12 +3,13 @@ import { getDb } from '@/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
 import { requireCompanySubscription, resolveSubscriptionEntitlements } from '@/lib/billing/subscriptions';
 import { encodeBoundPhone, formatBoundPhoneMask, verifyBoundPhone } from './phone-binding';
-import { phoneLast4, SMS_PURPOSE_INVITE_ACCEPT } from '@/lib/sms/security';
+import { SMS_PURPOSE_INVITE_ACCEPT } from '@/lib/sms/security';
+import { createPasswordCredentialInTransaction } from '@/lib/auth/password';
 
 const INVITE_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export type InvitationErrorCode = 'invalid_invitation' | 'member_limit_reached' | 'phone_belongs_to_other_company' | 'membership_conflict' | 'account_unavailable';
+export type InvitationErrorCode = 'invalid_invitation' | 'member_limit_reached' | 'phone_belongs_to_other_company' | 'membership_conflict' | 'account_unavailable' | 'profile_required';
 
 export class InvitationError extends Error {
   code: InvitationErrorCode;
@@ -170,7 +171,7 @@ export async function getActiveInvitationForPhone(inviteCode: string, phoneE164:
  */
 export async function acceptPhoneInvitationInTransaction(
   tx: any,
-  input: { invitation: InvitationRow; phoneE164: string },
+  input: { invitation: InvitationRow; phoneE164: string; newUserProfile?: { personalName: string; passwordHash: string } },
 ) {
     const invitation = input.invitation;
     if (!isInvitationUsable(invitation) || !verifyBoundPhone(invitation.boundPhone, input.phoneE164)) throw new InvitationError('invalid_invitation', '邀请已失效');
@@ -189,11 +190,12 @@ export async function acceptPhoneInvitationInTransaction(
     const needsActiveSeat = !existing || existing.status !== 'active';
     if (needsActiveSeat && await activeMemberCount(tx, invitation.companyId) >= entitlements.memberLimit) throw new InvitationError('member_limit_reached', '成员名额已满');
     if (!user) {
+      if (!input.newUserProfile) throw new InvitationError('profile_required', '请填写姓名并设置登录密码');
       const userId = randomUUID();
-      const last4 = phoneLast4(input.phoneE164);
-      await tx.prepare(`INSERT INTO "User" (id,name,"phoneE164","phoneVerifiedAt",status,role,"companyId","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?)`).run(userId, `成员${last4}`, input.phoneE164, now, 'active', 'member', invitation.companyId, now, now);
+      await tx.prepare(`INSERT INTO "User" (id,name,"phoneE164","phoneVerifiedAt",status,role,"companyId","createdAt","updatedAt") VALUES (?,?,?,?,?,?,?,?,?)`).run(userId, input.newUserProfile.personalName, input.phoneE164, now, 'active', 'member', invitation.companyId, now, now);
       await tx.prepare(`INSERT INTO "AuthIdentity" (id,"userId",provider,"providerUserId","createdAt","updatedAt") VALUES (?,?, 'phone', ?,?,?)`).run(randomUUID(), userId, input.phoneE164, now, now);
-      user = { id: userId, name: `成员${last4}`, email: null, status: 'active', role: 'member', companyId: invitation.companyId };
+      await createPasswordCredentialInTransaction(tx, { userId, passwordHash: input.newUserProfile.passwordHash });
+      user = { id: userId, name: input.newUserProfile.personalName, email: null, status: 'active', role: 'member', companyId: invitation.companyId };
     } else {
       if (identity) await tx.prepare(`UPDATE "AuthIdentity" SET "providerUserId"=?,"updatedAt"=? WHERE id=?`).run(input.phoneE164, now, identity.id);
       else await tx.prepare(`INSERT INTO "AuthIdentity" (id,"userId",provider,"providerUserId","createdAt","updatedAt") VALUES (?,?, 'phone', ?,?,?)`).run(randomUUID(), user.id, input.phoneE164, now, now);

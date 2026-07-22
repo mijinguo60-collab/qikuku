@@ -8,7 +8,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession();
   if (!session) redirect('/auth/login');
   const membership = await getActiveMembershipForUser(session.id, session.activeCompanyId);
-  if (!membership) redirect('/onboarding');
+  if (!membership) redirect('/auth/login');
   const userRole = membership.role || '';
 
   return (

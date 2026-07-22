@@ -1,7 +1,11 @@
 import { createHmac, randomInt, timingSafeEqual } from 'crypto';
 
-export const SMS_PURPOSE_LOGIN = 'LOGIN';
+export const SMS_PURPOSE_REGISTER = 'REGISTER';
+export const SMS_PURPOSE_RESET_PASSWORD = 'RESET_PASSWORD';
+export const SMS_PURPOSE_WECHAT_BIND = 'WECHAT_BIND';
 export const SMS_PURPOSE_INVITE_ACCEPT = 'INVITE_ACCEPT';
+export const SMS_PURPOSE_CHANGE_PHONE = 'CHANGE_PHONE';
+export const SMS_PURPOSE_HIGH_RISK_ACTION = 'HIGH_RISK_ACTION';
 const MAINLAND_PHONE = /^1[3-9]\d{9}$/;
 
 export type SmsSecurityConfig = {

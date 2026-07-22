@@ -78,9 +78,39 @@ model User {
   sessions     UserSession[]
   paymentOrders PaymentOrder[]
   identities   AuthIdentity[]
+  passwordCredential PasswordCredential?
+  passwordLoginAttempts PasswordLoginAttempt[]
   memberships  CompanyMembership[]
   invitationsSent CompanyInvitation[] @relation("InvitationInviter")
   platformAuditLogs PlatformAuditLog[]
+}
+
+model PasswordCredential {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  passwordHash      String
+  passwordUpdatedAt DateTime @default(now())
+  failedAttempts    Int      @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lockedUntil])
+}
+
+model PasswordLoginAttempt {
+  id          String   @id @default(uuid())
+  userId      String?
+  phoneHash   String
+  ipHash      String
+  deviceHash  String
+  attemptedAt DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([phoneHash, attemptedAt])
+  @@index([ipHash, attemptedAt])
+  @@index([deviceHash, attemptedAt])
 }
 
 model Company {
@@ -90,6 +120,7 @@ model Company {
   industry       String?
   description    String?
   plan           String             @default("free")
+  status         String             @default("active")
   createdAt      DateTime           @default(now())
   users          User[]
   knowledgeSpaces KnowledgeSpace[]

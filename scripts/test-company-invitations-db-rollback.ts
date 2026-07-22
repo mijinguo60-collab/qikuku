@@ -61,6 +61,7 @@ async function main() {
 
   const { createPhoneInvitation, revokeCompanyInvitation, invitationAcceptPurpose } = await import('../lib/invitations/company-invitations');
   const { acceptInvitationWithCode, issueSmsChallenge, sendInvitationAcceptCode } = await import('../lib/sms/auth-service');
+  const { hashLoginPassword } = await import('../lib/auth/password');
   const { encodeBoundPhone } = await import('../lib/invitations/phone-binding');
   const { createServerSession, getSessionForToken } = await import('../lib/session');
   const client = new Client({ connectionString: direct, ssl: { rejectUnauthorized: false } });
@@ -92,7 +93,8 @@ async function main() {
       const metadata = { ip: '203.0.113.8', userAgent: 'invite-test' };
       const invite = (phoneE164: string, auditWriter: any = noAudit) => createPhoneInvitation({ companyId, inviterId: ownerId, phoneE164, db, auditWriter });
       const send = (inviteCode: string, phoneE164: string, code = '654321', auditWriter: any = noAudit) => sendInvitationAcceptCode(inviteCode, phoneE164, metadata, code, { db, provider: provider as any, auditWriter });
-      const accept = (inviteCode: string, phoneE164: string, code = '654321', auditWriter: any = noAudit) => acceptInvitationWithCode(inviteCode, phoneE164, code, metadata, { db, auditWriter });
+      const inviteeProfile = { personalName: '邀请测试员工', passwordHash: await hashLoginPassword('InvitePassw0rd!') };
+      const accept = (inviteCode: string, phoneE164: string, code = '654321', auditWriter: any = noAudit) => acceptInvitationWithCode(inviteCode, phoneE164, code, metadata, { db, auditWriter }, inviteeProfile);
 
       const auditCreate = await invite('+8613812345678', failingAudit as any);
       progress('create/revoke/audit');
