@@ -28,6 +28,7 @@ async function main() {
   assert.match(migrate, /TARGET_DATABASE_SSL_CA_PATH/);
   const localMigrator = await readFile(path.join(root, 'scripts/db/migrate-current-local.ts'), 'utf8');
   assert.match(localMigrator, /latestNeonBackup/);
+  assert.match(localMigrator, /ep-snowy-tooth-ata0virv\.c-9\.us-east-1\.aws\.neon\.tech/);
   assert.match(localMigrator, /spawnSync\('bash'/);
   assert.doesNotMatch(localMigrator, /console\.log\(.*DATABASE/);
   assert.match(migrate, /Unsafe source\/target endpoints/);

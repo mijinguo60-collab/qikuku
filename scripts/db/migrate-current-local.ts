@@ -8,9 +8,18 @@ loadEnv({ path: '.env.local' });
 
 function latestNeonBackup() {
   const directory = path.join(process.cwd(), '.local-backups');
-  const names = readdirSync(directory).filter((name) => /^env\.local\.\d+\.bak$/.test(name)).sort();
-  if (!names.length) throw new Error('未找到 Git 忽略的 Neon 本地配置备份');
-  return path.join(directory, names.at(-1)!);
+  const names = readdirSync(directory)
+    .filter((name) => /^env\.local\.\d+\.bak$/.test(name))
+    .sort()
+    .reverse();
+  for (const name of names) {
+    const candidate = path.join(directory, name);
+    const values = parse(readFileSync(candidate));
+    if (values.DATABASE_DIRECT_URL && new URL(values.DATABASE_DIRECT_URL).hostname === 'ep-snowy-tooth-ata0virv.c-9.us-east-1.aws.neon.tech') {
+      return candidate;
+    }
+  }
+  throw new Error('未找到指定 Neon 测试 direct endpoint 的 Git 忽略本地配置备份');
 }
 
 function main() {
