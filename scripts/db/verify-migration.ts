@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { config as loadEnv } from 'dotenv';
 import { Client } from 'pg';
+import { readFileSync } from 'node:fs';
 
 loadEnv({ path: '.env' });
 loadEnv({ path: '.env.local', override: true });
@@ -13,8 +14,15 @@ function endpoint(label: string, url: string) {
   return parsed;
 }
 
-async function snapshot(url: string): Promise<Snapshot> {
-  const client = new Client({ connectionString: url, ssl: { rejectUnauthorized: false }, statement_timeout: 30_000 });
+function clientOptions(url: string, certificatePath?: string) {
+  if (!certificatePath) return { connectionString: url, ssl: { rejectUnauthorized: false }, statement_timeout: 30_000 };
+  const parsed = new URL(url);
+  for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) parsed.searchParams.delete(key);
+  return { connectionString: parsed.toString(), ssl: { ca: readFileSync(certificatePath, 'utf8'), rejectUnauthorized: true }, statement_timeout: 30_000 };
+}
+
+async function snapshot(url: string, certificatePath?: string): Promise<Snapshot> {
+  const client = new Client(clientOptions(url, certificatePath));
   await client.connect();
   try {
     const tableNames = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name`);
@@ -48,7 +56,7 @@ async function main() {
   assert.equal(source.hostname, 'ep-snowy-tooth-ata0virv.c-9.us-east-1.aws.neon.tech', 'source 只能是指定 Neon 测试 direct endpoint');
   assert.notEqual(source.href, target.href, 'source 与 target 不能相同');
   assert.equal(target.hostname.includes('neon.tech'), false, 'target 必须是新的国内 PostgreSQL，不可误写 Neon');
-  const [before, after] = await Promise.all([snapshot(sourceUrl), snapshot(targetUrl)]);
+  const [before, after] = await Promise.all([snapshot(sourceUrl), snapshot(targetUrl, process.env.TARGET_DATABASE_SSL_CA_PATH)]);
   assert.deepEqual(after.tables, before.tables, '所有表行数估计值必须一致');
   assert.deepEqual(after.migrations, before.migrations, 'Prisma migration 历史必须一致');
   assert.deepEqual(after.indexes, before.indexes, '索引必须一致');

@@ -49,9 +49,19 @@ function getPostgresSslConfig() {
   }
 }
 
+function getPostgresConnectionString() {
+  if (!process.env.DATABASE_SSL_CA_PATH) return URL;
+  // pg gives SSL parameters embedded in a connection string precedence over
+  // the explicit ssl object. Remove them so our pinned local CA below is the
+  // single source of truth and rejectUnauthorized remains enforced.
+  const parsed = new globalThis.URL(URL);
+  for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) parsed.searchParams.delete(key);
+  return parsed.toString();
+}
+
 function createPgDb(): any {
   const pool = new Pool({
-    connectionString: URL,
+    connectionString: getPostgresConnectionString(),
     max: PG_POOL_MAX,
     connectionTimeoutMillis: PG_CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: PG_IDLE_TIMEOUT_MS,

@@ -48,8 +48,9 @@ require('dotenv').config({ path: '.env.local' });
 const { Client } = require('pg');
 const url = process.env.DATABASE_DIRECT_URL;
 const parsed = new URL(url);
+for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) parsed.searchParams.delete(key);
 const certificatePath = process.env.DATABASE_SSL_CA_PATH;
 const ca = require('fs').readFileSync(certificatePath, 'utf8');
-const client = new Client({ connectionString: url, ssl: { ca, rejectUnauthorized: true }, statement_timeout: 10000 });
+const client = new Client({ connectionString: parsed.toString(), ssl: { ca, rejectUnauthorized: true }, statement_timeout: 10000 });
 client.connect().then(() => client.query('SELECT 1')).then(() => client.end()).then(() => console.log(`Domestic PostgreSQL connection verified: ${parsed.hostname}`)).catch(async (error) => { await client.end().catch(() => {}); console.error(`Connection verification failed: ${error.code || 'UNKNOWN'}`); process.exitCode = 1; });
 NODE
