@@ -23,7 +23,12 @@ function latestNeonBackup() {
 }
 
 function main() {
-  if (!process.argv.includes('--apply') || process.env.CONFIRM_DOMESTIC_DB_MIGRATION !== 'migrate-neon-test-to-domestic') {
+  const apply = process.argv.includes('--apply');
+  const verify = process.argv.includes('--verify');
+  if (apply === verify) {
+    throw new Error('必须二选一传入 --apply 或 --verify');
+  }
+  if (apply && process.env.CONFIRM_DOMESTIC_DB_MIGRATION !== 'migrate-neon-test-to-domestic') {
     throw new Error('必须传入 --apply 和 CONFIRM_DOMESTIC_DB_MIGRATION=migrate-neon-test-to-domestic');
   }
   const source = parse(readFileSync(latestNeonBackup()));
@@ -37,7 +42,9 @@ function main() {
   assert.equal(targetHost.includes('neon.tech'), false, '目标库必须是国内 PostgreSQL');
   assert.notEqual(sourceUrl, targetUrl, '源库与目标库不得相同');
 
-  const result = spawnSync('bash', ['scripts/db/migrate-postgres.sh', '--apply'], {
+  const command = apply ? 'bash' : 'npx';
+  const args = apply ? ['scripts/db/migrate-postgres.sh', '--apply'] : ['tsx', 'scripts/db/verify-migration.ts', '--verify'];
+  const result = spawnSync(command, args, {
     cwd: process.cwd(),
     stdio: 'inherit',
     env: {
