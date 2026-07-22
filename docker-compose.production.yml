@@ -1,0 +1,51 @@
+name: qikuku
+
+services:
+  app:
+    image: ${QIKUKU_IMAGE:-qikuku:local}
+    build:
+      context: .
+      target: runner
+    env_file:
+      - ${QIKUKU_ENV_FILE:-.env.production.local}
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      DATABASE_REQUIRE_POSTGRES: 'true'
+    ports:
+      - '127.0.0.1:${QIKUKU_APP_PORT:-3000}:3000'
+    volumes:
+      - ${DATABASE_SSL_CA_HOST_PATH:-/etc/qikuku/tencentdb-ca.pem}:/run/secrets/tencentdb-ca.pem:ro
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health/live').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  migrate:
+    image: ${QIKUKU_MIGRATOR_IMAGE:-qikuku:migrator-local}
+    build:
+      context: .
+      target: migrator
+    profiles: ['tools']
+    env_file:
+      - ${QIKUKU_ENV_FILE:-.env.production.local}
+    environment:
+      NODE_ENV: production
+      DATABASE_REQUIRE_POSTGRES: 'true'
+    volumes:
+      - ${DATABASE_SSL_CA_HOST_PATH:-/etc/qikuku/tencentdb-ca.pem}:/run/secrets/tencentdb-ca.pem:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

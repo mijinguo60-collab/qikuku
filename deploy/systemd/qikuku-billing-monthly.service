@@ -1,0 +1,16 @@
+[Unit]
+Description=Qikuku monthly billing grant
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=qikuku
+Group=qikuku
+EnvironmentFile=/etc/qikuku/production.env
+ExecStart=/opt/qikuku/current/deploy/scripts/run-monthly-billing.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/qikuku/current

@@ -1,9 +1,9 @@
 import { config } from "dotenv";
 import { defineConfig } from "prisma/config";
 
-// Prisma CLI commands (migration/status/validate) must use the direct Neon
-// endpoint. Load .env first, then let the local development override supply
-// DATABASE_DIRECT_URL without changing the application's pooled runtime URL.
+// Prisma CLI commands (migration/status/validate) use the direct PostgreSQL
+// endpoint. Load .env first, then let a local or deployment-specific override
+// supply DATABASE_DIRECT_URL without changing the application's runtime URL.
 config({ path: ".env" });
 config({ path: ".env.local", override: true });
 

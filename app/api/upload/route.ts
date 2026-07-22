@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createStorageAdapter } from '@/lib/storage';
 import { getDb } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
-import { parseFile, getFileParserStatus } from '@/lib/file-parser';
+import { parseBuffer, getFileParserStatus } from '@/lib/file-parser';
 import { chunkText } from '@/lib/ai/rag-pipeline';
 import { createEmbedding } from '@/lib/ai/embedding-provider';
 import { logAction } from '@/lib/audit';
@@ -66,7 +66,9 @@ export async function POST(request: NextRequest) {
     // Step 3: Parse text
     let parseStatus = 'pending', extractedText = '', chunkCount = 0, embeddingStatus = 'skipped';
     try {
-      const parseResult = await parseFile(stored.storageKey || stored.url, ext);
+      // Parse the request bytes, not an object-store key. Vercel Blob and the
+      // planned COS adapter do not expose their keys as local paths on CVM.
+      const parseResult = await parseBuffer(buffer, ext);
       extractedText = parseResult.text || '';
       parseStatus = getFileParserStatus(extractedText);
 
@@ -151,7 +153,9 @@ export async function POST(request: NextRequest) {
       chunkCount, embeddingStatus, chargedCredits: billing?.chargedCredits || 0, remainingCredits: billing?.balance,
     });
   } catch (e: any) {
-    console.error('[UPLOAD]', e.message);
-    return NextResponse.json({ error: e.message || '上传失败' }, { status: 500 });
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[UPLOAD]', { code: e?.code || 'UNKNOWN' });
+    }
+    return NextResponse.json({ error: '上传失败，请稍后重试' }, { status: 503 });
   }
 }

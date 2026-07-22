@@ -21,6 +21,46 @@ export async function parseFile(filePath: string, fileType: string): Promise<Par
   return { text: '', metadata: { error: `不支持的文件类型: ${ft}` } };
 }
 
+/**
+ * Parse the upload bytes already held by the request. Production object storage
+ * keys are not local filesystem paths, so this is the only safe way to parse a
+ * file before it is persisted to Vercel Blob or a future COS adapter.
+ */
+export async function parseBuffer(buffer: Buffer, fileType: string): Promise<ParsedResult> {
+  const ft = fileType.toLowerCase();
+  try {
+    if (['txt', 'md', 'mdx', 'csv'].includes(ft)) return { text: buffer.toString('utf-8') };
+    if (ft === 'json') return { text: flattenJSON(JSON.parse(buffer.toString('utf-8'))) };
+    if (ft === 'pdf') {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(buffer);
+      return { text: data.text || '', metadata: { pages: data.numpages } };
+    }
+    if (['docx', 'doc'].includes(ft)) {
+      const mammoth = await import('mammoth');
+      const result = await mammoth.extractRawText({ buffer });
+      return { text: result.value || '' };
+    }
+    if (['xlsx', 'xls'].includes(ft)) {
+      const XLSX = await import('xlsx');
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      const texts = workbook.SheetNames
+        .map((name) => {
+          const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name]);
+          return csv.trim() ? `[Sheet: ${name}]\n${csv}` : '';
+        })
+        .filter(Boolean);
+      return { text: texts.join('\n\n') };
+    }
+    if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ft)) {
+      return { text: '', metadata: { warning: '图片文件暂不支持 OCR 文本解析' } };
+    }
+    return { text: '', metadata: { error: `不支持的文件类型: ${ft}` } };
+  } catch (e: any) {
+    return { text: '', metadata: { error: e instanceof Error ? e.message : '文件解析失败' } };
+  }
+}
+
 function parseText(filePath: string): ParsedResult {
   try { return { text: fs.readFileSync(filePath, 'utf-8') }; }
   catch (e: any) { return { text: '', metadata: { error: e.message } }; }

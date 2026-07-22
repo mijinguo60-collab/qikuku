@@ -9,7 +9,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 // 从环境变量获取加密密钥（32 字节）
 function getSecretKey(): Buffer {
-  const secret = process.env.ENCRYPTION_KEY || 'qikuku-default-encryption-key!!';
+  const configured = process.env.ENCRYPTION_KEY;
+  if (process.env.NODE_ENV === 'production' && !configured) {
+    throw new Error('生产环境缺少 ENCRYPTION_KEY');
+  }
+  const secret = configured || 'qikuku-default-encryption-key!!';
   return Buffer.from(secret.padEnd(32, '0').slice(0, 32), 'utf-8');
 }
 

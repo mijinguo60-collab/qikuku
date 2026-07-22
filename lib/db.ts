@@ -161,7 +161,10 @@ export function getDb(): any {
       globalDatabase.db = createPgDb();
       return globalDatabase.db;
     } catch (e: any) {
-      console.error('[DB] PostgreSQL failed:', e.message);
+      // Do not log driver messages here: depending on the driver and failure
+      // mode they can contain endpoint details. The code is enough for server
+      // diagnostics, while callers return a generic unavailable response.
+      console.error('[DB] PostgreSQL initialization failed:', e?.code || 'UNKNOWN');
       if (REQUIRE_POSTGRES) throw e;
     }
   }
