@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { config as loadEnv } from 'dotenv';
 import { Client } from 'pg';
+import { readFileSync } from 'node:fs';
 
 loadEnv({ path: '.env' });
 loadEnv({ path: '.env.local', override: true });
@@ -22,14 +23,25 @@ async function measure(client: Client, runs: number, sql: string) {
 
 async function main() {
   const sourceTestMode = process.argv.includes('--source-test');
-  const target = process.env.BENCHMARK_DATABASE_URL || (sourceTestMode ? process.env.DATABASE_DIRECT_URL : undefined);
-  if (!target) throw new Error('仅显式设置 BENCHMARK_DATABASE_URL，或使用 --source-test 后才可执行基准测试');
+  const domesticMode = process.argv.includes('--current-domestic');
+  if (sourceTestMode === domesticMode) throw new Error('必须二选一传入 --source-test 或 --current-domestic');
+  const target = process.env.BENCHMARK_DATABASE_URL || (domesticMode ? process.env.DATABASE_DIRECT_URL : undefined);
+  if (!target) throw new Error('缺少受控基准连接；请通过本地包装器运行');
   const parsed = new URL(target);
   assert.ok(['postgres:', 'postgresql:'].includes(parsed.protocol), 'BENCHMARK_DATABASE_URL 必须是 PostgreSQL 连接串');
   if (sourceTestMode) assert.equal(parsed.hostname, 'ep-snowy-tooth-ata0virv.c-9.us-east-1.aws.neon.tech', '--source-test 只能基准指定 Neon 测试库');
+  if (domesticMode) assert.equal(parsed.hostname.includes('neon.tech'), false, '--current-domestic 不能连接 Neon');
   const runs = Number(process.argv.find((arg) => arg.startsWith('--runs='))?.split('=')[1] || 10);
   assert.ok(Number.isInteger(runs) && runs >= 3 && runs <= 100, 'runs 必须在 3 到 100 之间');
-  const client = new Client({ connectionString: target, ssl: { rejectUnauthorized: false }, statement_timeout: 20_000 });
+  for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) parsed.searchParams.delete(key);
+  const certificatePath = domesticMode ? process.env.DATABASE_SSL_CA_PATH : undefined;
+  if (domesticMode && !certificatePath) throw new Error('国内基准必须配置 DATABASE_SSL_CA_PATH');
+  const client = new Client({
+    connectionString: parsed.toString(),
+    ssl: certificatePath ? { ca: readFileSync(certificatePath, 'utf8'), rejectUnauthorized: true } : { rejectUnauthorized: false },
+    connectionTimeoutMillis: 20_000,
+    statement_timeout: 20_000,
+  });
   await client.connect();
   try {
     await client.query('SELECT 1'); // warm connection; excluded from samples
@@ -41,4 +53,10 @@ async function main() {
   }
 }
 
-main().catch((error) => { console.error('benchmark failed:', error instanceof Error ? error.message : 'unknown'); process.exitCode = 1; });
+main().catch((error) => {
+  const databaseError = error as { code?: unknown; message?: unknown };
+  const code = typeof databaseError.code === 'string' ? ` (${databaseError.code})` : '';
+  const message = typeof databaseError.message === 'string' && databaseError.message ? `: ${databaseError.message}` : '';
+  console.error(`benchmark failed${code}${message}`);
+  process.exitCode = 1;
+});

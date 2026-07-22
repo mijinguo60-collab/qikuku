@@ -12,7 +12,11 @@ async function main() {
   ]);
   assert.match(inspect, /ep-snowy-tooth-ata0virv\.c-9\.us-east-1\.aws\.neon\.tech/);
   assert.match(inspect, /readonly: true/);
-  assert.match(await readFile(path.join(root, 'scripts/db/benchmark-postgres.ts'), 'utf8'), /--source-test/);
+  const benchmark = await readFile(path.join(root, 'scripts/db/benchmark-postgres.ts'), 'utf8');
+  assert.match(benchmark, /--source-test/);
+  assert.match(benchmark, /--current-domestic/);
+  assert.match(benchmark, /DATABASE_SSL_CA_PATH/);
+  assert.match(benchmark, /connectionTimeoutMillis: 20_000/);
   assert.match(verify, /assert\.notEqual\(source\.href, target\.href/);
   assert.match(verify, /target\.hostname\.includes\('neon\.tech'\), false/);
   assert.match(verify, /parsed\.searchParams\.delete\(key\)/);
@@ -43,6 +47,11 @@ async function main() {
   assert.match(localMigrator, /ep-snowy-tooth-ata0virv\.c-9\.us-east-1\.aws\.neon\.tech/);
   assert.match(localMigrator, /spawnSync\(command, args/);
   assert.match(localMigrator, /--verify/);
+  const localBenchmark = await readFile(path.join(root, 'scripts/db/benchmark-current-local.ts'), 'utf8');
+  assert.match(localBenchmark, /latestNeonBackup/);
+  assert.match(localBenchmark, /--source/);
+  assert.match(localBenchmark, /--domestic/);
+  assert.doesNotMatch(localBenchmark, /console\.log\(.*DATABASE/);
   assert.doesNotMatch(localMigrator, /console\.log\(.*DATABASE/);
   assert.match(migrate, /Unsafe source\/target endpoints/);
   console.log('domestic PostgreSQL migration tool safety tests passed');
