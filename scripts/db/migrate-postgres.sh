@@ -10,8 +10,12 @@ fi
 : "${TARGET_DATABASE_SSL_CA_PATH:?TARGET_DATABASE_SSL_CA_PATH is required}"
 [[ -f "$TARGET_DATABASE_SSL_CA_PATH" ]] || { echo "Target CA certificate file is missing." >&2; exit 65; }
 
-source_host=$(node -p 'new URL(process.argv[1]).hostname' "$SOURCE_DATABASE_URL")
-target_host=$(node -p 'new URL(process.argv[1]).hostname' "$TARGET_DATABASE_URL")
+read -r source_host target_host < <(node <<'NODE'
+const source = new URL(process.env.SOURCE_DATABASE_URL);
+const target = new URL(process.env.TARGET_DATABASE_URL);
+process.stdout.write(`${source.hostname} ${target.hostname}\n`);
+NODE
+)
 if [[ "$source_host" != "ep-snowy-tooth-ata0virv.c-9.us-east-1.aws.neon.tech" || "$target_host" == *"neon.tech"* || "$source_host" == "$target_host" ]]; then
   echo "Unsafe source/target endpoints; migration stopped." >&2
   exit 65
@@ -23,17 +27,37 @@ backup_dir=".local-backups/postgres-migrations"
 mkdir -p "$backup_dir"
 chmod 700 "$backup_dir"
 dump_file="$backup_dir/neon-test-$(date +%Y%m%d%H%M%S).dump"
-trap 'rm -f "$dump_file"' EXIT
+credentials_dir=$(mktemp -d "$backup_dir/pg-credentials.XXXXXX")
+service_file="$credentials_dir/pg_service.conf"
+pass_file="$credentials_dir/pgpass"
+migration_succeeded=false
+cleanup() {
+  rm -rf "$credentials_dir"
+  if [[ "$migration_succeeded" != true ]]; then
+    rm -f "$dump_file"
+  fi
+}
+trap cleanup EXIT
 
-target_restore_url=$(node - "$TARGET_DATABASE_URL" "$TARGET_DATABASE_SSL_CA_PATH" <<'NODE'
-const parsed = new URL(process.argv[2]);
-parsed.searchParams.set('sslmode', 'verify-full');
-parsed.searchParams.set('sslrootcert', process.argv[3]);
-process.stdout.write(parsed.toString());
+node - "$service_file" "$pass_file" <<'NODE'
+const { writeFileSync, chmodSync } = require('node:fs');
+const source = new URL(process.env.SOURCE_DATABASE_URL);
+const target = new URL(process.env.TARGET_DATABASE_URL);
+const targetCa = process.env.TARGET_DATABASE_SSL_CA_PATH;
+const asFields = (url) => ({ host: url.hostname, port: url.port || '5432', database: url.pathname.slice(1), user: decodeURIComponent(url.username), password: decodeURIComponent(url.password) });
+const escapePass = (value) => value.replace(/\\/g, '\\\\').replace(/:/g, '\\:');
+const sourceFields = asFields(source);
+const targetFields = asFields(target);
+const service = (name, fields, extra = '') => `[${name}]\nhost=${fields.host}\nport=${fields.port}\ndbname=${fields.database}\nuser=${fields.user}\nsslmode=verify-full\n${extra}`;
+writeFileSync(process.argv[2], `${service('source', sourceFields)}\n${service('target', targetFields, `sslrootcert=${targetCa}\n`)}`, { mode: 0o600 });
+writeFileSync(process.argv[3], `${sourceFields.host}:${sourceFields.port}:${sourceFields.database}:${sourceFields.user}:${escapePass(sourceFields.password)}\n${targetFields.host}:${targetFields.port}:${targetFields.database}:${targetFields.user}:${escapePass(targetFields.password)}\n`, { mode: 0o600 });
+chmodSync(process.argv[2], 0o600);
+chmodSync(process.argv[3], 0o600);
 NODE
-)
 
-pg_dump --dbname="$SOURCE_DATABASE_URL" --format=custom --no-owner --no-privileges --file="$dump_file"
-pg_restore --dbname="$target_restore_url" --no-owner --no-privileges --exit-on-error "$dump_file"
+PGSERVICEFILE="$service_file" PGPASSFILE="$pass_file" pg_dump --dbname=service=source --format=custom --no-owner --no-privileges --file="$dump_file"
+chmod 600 "$dump_file"
+PGSERVICEFILE="$service_file" PGPASSFILE="$pass_file" pg_restore --dbname=service=target --no-owner --no-privileges --exit-on-error "$dump_file"
 SOURCE_DATABASE_URL="$SOURCE_DATABASE_URL" TARGET_DATABASE_URL="$TARGET_DATABASE_URL" TARGET_DATABASE_SSL_CA_PATH="$TARGET_DATABASE_SSL_CA_PATH" npx tsx scripts/db/verify-migration.ts --verify
+migration_succeeded=true
 echo "Migration completed. The Neon test source remains unchanged and the dump stays in $backup_dir."
