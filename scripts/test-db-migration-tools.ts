@@ -16,7 +16,9 @@ async function main() {
   assert.match(verify, /assert\.notEqual\(source\.href, target\.href/);
   assert.match(verify, /target\.hostname\.includes\('neon\.tech'\), false/);
   assert.match(configure, /read -r -s/);
-  assert.match(configure, /<host> <port> <database> <username>/);
+  assert.match(configure, /<host> <port> <database> <username> <ca-certificate-path>/);
+  assert.match(configure, /DATABASE_SSL_CA_PATH/);
+  assert.match(configure, /rejectUnauthorized: true/);
   assert.match(configure, /\.local-backups/);
   assert.doesNotMatch(configure, /console\.log\(.*target_url/);
   assert.match(migrate, /CONFIRM_DOMESTIC_DB_MIGRATION/);

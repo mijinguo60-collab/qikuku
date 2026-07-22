@@ -4,6 +4,7 @@
  */
 import { Pool, types as pgTypes } from 'pg';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { readFileSync } from 'node:fs';
 import path from 'path';
 
 const serverTestDbContext = new AsyncLocalStorage<any>();
@@ -38,6 +39,16 @@ function toPgParams(sql: string): string {
   return sql.replace(/\?/g, () => '$' + (++n));
 }
 
+function getPostgresSslConfig() {
+  const certificatePath = process.env.DATABASE_SSL_CA_PATH;
+  if (!certificatePath) return undefined;
+  try {
+    return { ca: readFileSync(certificatePath, 'utf8'), rejectUnauthorized: true };
+  } catch {
+    throw new Error('DATABASE_SSL_CA_PATH 证书文件无法读取');
+  }
+}
+
 function createPgDb(): any {
   const pool = new Pool({
     connectionString: URL,
@@ -45,6 +56,7 @@ function createPgDb(): any {
     connectionTimeoutMillis: PG_CONNECTION_TIMEOUT_MS,
     idleTimeoutMillis: PG_IDLE_TIMEOUT_MS,
     keepAlive: true,
+    ssl: getPostgresSslConfig(),
   });
   pool.on('error', (error: NodeJS.ErrnoException) => {
     console.error('[DB] Idle PostgreSQL client error:', error.code || 'UNKNOWN');
