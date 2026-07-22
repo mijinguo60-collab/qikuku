@@ -21,10 +21,10 @@ type ChallengeRow = { id: string; codeHash: string; expiresAt: Date | string; at
 
 // Cooldown remains purpose-scoped, but phone quotas intentionally are not:
 // otherwise each invitation-specific purpose could bypass phone-level limits.
-export const SMS_GLOBAL_PHONE_HOURLY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?`;
-export const SMS_GLOBAL_PHONE_DAILY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?`;
+export const SMS_GLOBAL_PHONE_HOURLY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "sendStatus"='SENT' AND "createdAt">?`;
+export const SMS_GLOBAL_PHONE_DAILY_LIMIT_SQL = `SELECT COUNT(*)::int AS count FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "sendStatus"='SENT' AND "createdAt">?`;
 
-// One statement intentionally performs all four rate-limit reads while the
+// One statement intentionally performs all rate-limit reads while the
 // advisory lock is held. A PostgreSQL transaction is bound to one client, so
 // this avoids three transatlantic request/response waits without weakening any
 // quota scope.
@@ -32,15 +32,23 @@ export const SMS_RATE_LIMIT_CHECK_SQL = `
   SELECT
     EXISTS(
       SELECT 1 FROM "SmsVerificationChallenge"
-      WHERE "phoneHash"=? AND purpose=? AND "createdAt">?
+      WHERE "phoneHash"=? AND purpose=? AND "sendStatus"='SENT' AND "createdAt">?
     ) AS "cooldownHit",
-    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?) AS "phoneHourlyCount",
-    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "createdAt">?) AS "phoneDailyCount",
-    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "requestIpHash"=? AND "createdAt">?) AS "ipHourlyCount"
+    EXISTS(
+      SELECT 1 FROM "SmsVerificationChallenge"
+      WHERE "phoneHash"=? AND purpose=? AND "sendStatus"='PENDING' AND "createdAt">?
+    ) AS "sendInFlightHit",
+    EXISTS(
+      SELECT 1 FROM "SmsVerificationChallenge"
+      WHERE "phoneHash"=? AND "sendStatus"='FAILED' AND "failureCategory" IN ('rate_limited','provider','network','unknown') AND "createdAt">?
+    ) AS "providerFailureBackoffHit",
+    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "sendStatus"='SENT' AND "createdAt">?) AS "phoneHourlyCount",
+    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "phoneHash"=? AND "sendStatus"='SENT' AND "createdAt">?) AS "phoneDailyCount",
+    (SELECT COUNT(*)::int FROM "SmsVerificationChallenge" WHERE "requestIpHash"=? AND "sendStatus"='SENT' AND "createdAt">?) AS "ipHourlyCount"
 `;
 
-export type SmsRateLimitReason = 'resend_cooldown' | 'phone_hourly_limit' | 'phone_daily_limit' | 'ip_hourly_limit' | 'provider_rate_limited';
-type SmsRateLimitCheck = { cooldownHit: boolean; phoneHourlyCount: number; phoneDailyCount: number; ipHourlyCount: number };
+export type SmsRateLimitReason = 'resend_cooldown' | 'send_in_flight' | 'provider_failure_backoff' | 'phone_hourly_limit' | 'phone_daily_limit' | 'ip_hourly_limit' | 'provider_rate_limited';
+type SmsRateLimitCheck = { cooldownHit: boolean; sendInFlightHit: boolean; providerFailureBackoffHit: boolean; phoneHourlyCount: number; phoneDailyCount: number; ipHourlyCount: number };
 
 export type SmsSendCodeResult = { ok: true; maskedPhone: string } | { ok: false; kind: 'configuration' | 'rate_limited' | 'send_failed' };
 
@@ -52,8 +60,20 @@ export type SmsAuthServiceDependencies = {
 
 function asDate(value: Date | string) { return value instanceof Date ? value : new Date(value); }
 
+function safeProviderDiagnostic(value: unknown, maximumLength = 256) {
+  if (typeof value !== 'string') return undefined;
+  return value
+    .replace(/[\r\n\t]/g, ' ')
+    .replace(/\+?86?1[3-9]\d{9}/g, '[redacted-phone]')
+    .replace(/\b\d{6}\b/g, '[redacted-code]')
+    .trim()
+    .slice(0, maximumLength) || undefined;
+}
+
 function getRateLimitReason(check: SmsRateLimitCheck, config: NonNullable<ReturnType<typeof getSmsSecurityConfig>>) {
   if (check.cooldownHit) return 'resend_cooldown' as const;
+  if (check.sendInFlightHit) return 'send_in_flight' as const;
+  if (check.providerFailureBackoffHit) return 'provider_failure_backoff' as const;
   if (check.phoneHourlyCount >= config.phoneHourlyLimit) return 'phone_hourly_limit' as const;
   if (check.phoneDailyCount >= config.phoneDailyLimit) return 'phone_daily_limit' as const;
   if (check.ipHourlyCount >= config.ipHourlyLimit) return 'ip_hourly_limit' as const;
@@ -66,6 +86,8 @@ function logSmsRateLimit(reason: SmsRateLimitReason, check: SmsRateLimitCheck, s
   console.info('[SMS] challenge rate limited', {
     limitReason: reason,
     cooldownHit: check.cooldownHit,
+    sendInFlightHit: check.sendInFlightHit,
+    providerFailureBackoffHit: check.providerFailureBackoffHit,
     phoneHourlyCount: check.phoneHourlyCount,
     phoneDailyCount: check.phoneDailyCount,
     ipHourlyCount: check.ipHourlyCount,
@@ -84,7 +106,7 @@ async function lockPhone(tx: any, phoneHash: string) {
 
 async function audit(
   action: string,
-  values: { phoneHash: string; phoneLast4: string; ipHash: string; userAgentHash: string; providerRequestId?: string; failureCategory?: string; userId?: string; companyId?: string | null },
+  values: { phoneHash: string; phoneLast4: string; ipHash: string; userAgentHash: string; providerRequestId?: string; providerStatusCode?: string; providerStatusMessage?: string; failureCategory?: string; userId?: string; companyId?: string | null },
   dependencies: SmsAuthServiceDependencies,
 ) {
   const auditWriter = dependencies.auditWriter ?? writeAuditLog;
@@ -93,7 +115,7 @@ async function audit(
   try {
     await auditWriter({
       companyId: values.companyId || '', userId: values.userId, action,
-      detail: { phoneHash: values.phoneHash, phoneLast4: values.phoneLast4, ipHash: values.ipHash, userAgentHash: values.userAgentHash, providerRequestId: values.providerRequestId, failureCategory: values.failureCategory, provider: 'tencent_sms' },
+      detail: { phoneHash: values.phoneHash, phoneLast4: values.phoneLast4, ipHash: values.ipHash, userAgentHash: values.userAgentHash, providerRequestId: values.providerRequestId, providerStatusCode: values.providerStatusCode, providerStatusMessage: values.providerStatusMessage, failureCategory: values.failureCategory, provider: 'tencent_sms' },
     });
   } catch {
     // Do not log sensitive authentication data while auditing is unavailable.
@@ -122,16 +144,22 @@ export async function issueSmsChallenge(
     const rateLimit = await db.transactionAsync(async (tx: any) => {
       await lockPhone(tx, phoneHash);
       const cooldownAt = new Date(now.getTime() - config.resendCooldownSeconds * 1000).toISOString();
+      const inFlightAt = new Date(now.getTime() - config.resendCooldownSeconds * 1000).toISOString();
+      const providerFailureBackoffAt = new Date(now.getTime() - config.providerFailureBackoffSeconds * 1000).toISOString();
       const hourAt = new Date(now.getTime() - 3600_000).toISOString();
       const dayAt = new Date(now.getTime() - 86_400_000).toISOString();
       const row = await tx.prepare(SMS_RATE_LIMIT_CHECK_SQL).get(
         phoneHash, purpose, cooldownAt,
+        phoneHash, purpose, inFlightAt,
+        phoneHash, providerFailureBackoffAt,
         phoneHash, hourAt,
         phoneHash, dayAt,
         ipHash, hourAt,
       );
       const check: SmsRateLimitCheck = {
         cooldownHit: Boolean(row?.cooldownHit),
+        sendInFlightHit: Boolean(row?.sendInFlightHit),
+        providerFailureBackoffHit: Boolean(row?.providerFailureBackoffHit),
         phoneHourlyCount: Number(row?.phoneHourlyCount || 0),
         phoneDailyCount: Number(row?.phoneDailyCount || 0),
         ipHourlyCount: Number(row?.ipHourlyCount || 0),
@@ -158,15 +186,19 @@ export async function issueSmsChallenge(
       if (update.changes !== 1) throw new Error('sms_challenge_state_changed');
       await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "consumedAt"=?,"updatedAt"=? WHERE "phoneHash"=? AND purpose=? AND id<>? AND "sendStatus"='SENT' AND "consumedAt" IS NULL`).run(new Date().toISOString(), new Date().toISOString(), phoneHash, purpose, challengeId);
     });
-    await audit('SMS_CODE_SENT', { ...auditValues, providerRequestId: sent.providerRequestId }, dependencies);
+    await audit('SMS_CODE_SENT', { ...auditValues, providerRequestId: sent.providerRequestId, providerStatusCode: sent.providerStatusCode, providerStatusMessage: sent.providerStatusMessage }, dependencies);
     return { ok: true, maskedPhone: maskPhone(phoneE164) };
   } catch (error) {
     const failureCategory = error instanceof SmsProviderError ? error.category : 'unknown';
-    await db.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='FAILED',"failureCategory"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(failureCategory, error instanceof SmsProviderError ? error.providerStatusCode || null : null, new Date().toISOString(), challengeId).catch(() => {});
-    await audit('SMS_CODE_SEND_FAILED', { ...auditValues, failureCategory }, dependencies);
+    const providerError = error instanceof SmsProviderError ? error : undefined;
+    const providerRequestId = safeProviderDiagnostic(providerError?.providerRequestId, 128);
+    const providerStatusCode = safeProviderDiagnostic(providerError?.providerStatusCode, 128);
+    const providerStatusMessage = safeProviderDiagnostic(providerError?.providerStatusMessage);
+    await db.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='FAILED',"failureCategory"=?,"providerRequestId"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(failureCategory, providerRequestId || null, providerStatusCode || null, new Date().toISOString(), challengeId).catch(() => {});
+    await audit('SMS_CODE_SEND_FAILED', { ...auditValues, failureCategory, providerRequestId, providerStatusCode, providerStatusMessage }, dependencies);
     if (error instanceof SmsProviderError && error.category === 'configuration') return { ok: false, kind: 'configuration' };
     if (error instanceof SmsProviderError && error.category === 'rate_limited') {
-      if (process.env.NODE_ENV === 'development') console.info('[SMS] challenge rate limited', { limitReason: 'provider_rate_limited', durationMs: Math.round(performance.now() - startedAt) });
+      if (process.env.NODE_ENV === 'development') console.info('[SMS] Tencent provider rejected challenge', { limitReason: 'provider_rate_limited', providerStatusCode: providerStatusCode || 'UNKNOWN', providerStatusMessage: providerStatusMessage || 'UNKNOWN', providerRequestId: providerRequestId || null, durationMs: Math.round(performance.now() - startedAt) });
       return { ok: false, kind: 'rate_limited' };
     }
     return { ok: false, kind: 'send_failed' };

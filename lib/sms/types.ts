@@ -6,6 +6,7 @@ export type SmsSendInput = {
 export type SmsSendResult = {
   providerRequestId?: string;
   providerStatusCode?: string;
+  providerStatusMessage?: string;
 };
 
 export interface SmsProvider {
@@ -18,15 +19,21 @@ export type SmsProviderFailureCategory = 'configuration' | 'rate_limited' | 'pro
 export class SmsProviderError extends Error {
   public readonly category: SmsProviderFailureCategory;
   public readonly providerStatusCode?: string;
+  public readonly providerStatusMessage?: string;
+  public readonly providerRequestId?: string;
 
   constructor(
     message: string,
     category: SmsProviderFailureCategory = 'provider',
     providerStatusCode?: string,
+    providerStatusMessage?: string,
+    providerRequestId?: string,
   ) {
     super(message);
     this.name = 'SmsProviderError';
     this.category = category;
     this.providerStatusCode = providerStatusCode;
+    this.providerStatusMessage = providerStatusMessage;
+    this.providerRequestId = providerRequestId;
   }
 }

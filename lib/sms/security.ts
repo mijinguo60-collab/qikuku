@@ -12,6 +12,7 @@ export type SmsSecurityConfig = {
   pepper: string;
   ttlSeconds: number;
   resendCooldownSeconds: number;
+  providerFailureBackoffSeconds: number;
   maxVerifyAttempts: number;
   phoneHourlyLimit: number;
   phoneDailyLimit: number;
@@ -32,6 +33,7 @@ export function getSmsSecurityConfig(): SmsSecurityConfig | null {
     pepper,
     ttlSeconds: integerEnv('SMS_CODE_TTL_SECONDS', 300, 60),
     resendCooldownSeconds: integerEnv('SMS_RESEND_COOLDOWN_SECONDS', 60, 30),
+    providerFailureBackoffSeconds: integerEnv('SMS_PROVIDER_FAILURE_BACKOFF_SECONDS', 60, 15),
     maxVerifyAttempts: integerEnv('SMS_MAX_VERIFY_ATTEMPTS', 5, 1),
     phoneHourlyLimit: integerEnv('SMS_PHONE_HOURLY_LIMIT', 5, 1),
     phoneDailyLimit: integerEnv('SMS_PHONE_DAILY_LIMIT', 10, 1),

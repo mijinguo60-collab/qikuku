@@ -26,6 +26,7 @@ async function main() {
   assert.doesNotMatch(register, /const \[step, setStep\]/, 'registration fields must not be hidden behind a second step');
   assert.doesNotMatch(register, /step === 1/, 'registration must render all fields immediately');
   assert.match(register, /disabled=\{sending \|\| countdown > 0 \|\| !mainlandPhone\.test\(phone\)\}/);
+  assert.match(register, /if \(!response\.ok\) \{\s*setError\(data\?\.error \|\| '短信暂时发送失败，请稍后重试'\);\s*return;\s*\}\s*setCountdown\(60\)/, 'provider failure must not start the resend countdown');
   assert.match(register, /disabled=\{submitting\}/);
   assert.match(register, /validateLoginPasswordValue/);
   assert.match(register, /password !== confirmPassword/);
