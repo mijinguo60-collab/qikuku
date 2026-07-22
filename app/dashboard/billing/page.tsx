@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, CreditCard, Crown, Loader2, Sparkles, Wallet } from 'lucide-react';
+import { AlertTriangle, Crown, Loader2, Sparkles, Wallet } from 'lucide-react';
 import { PLAN_CATALOG, RECHARGE_OPTIONS } from '@/lib/billing/pricing';
 import PaymentModal, { PurchaseIntent } from '@/components/billing/PaymentModal';
-import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 type BillingData = { subscription: any; credits: any; ledger: any[]; usage: any[]; payments: { wechat: boolean; alipay: boolean } };
 const money = (cents: number) => `¥${(Number(cents || 0) / 100).toLocaleString('zh-CN')}`;
@@ -14,11 +13,10 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const [intent, setIntent] = useState<PurchaseIntent | null>(null);
-  const { refreshCredits } = useCreditBalance();
 
   async function load() {
     setLoading(true);
-    const res = await fetch('/api/billing/credits');
+    const res = await fetch('/api/billing/credits?details=1');
     const payload = await res.json();
     if (res.ok) setData(payload); else setNotice(payload.error || '加载失败');
     setLoading(false);
@@ -41,5 +39,5 @@ export default function BillingPage() {
     <section className="card p-6"><h2 className="text-base font-semibold">充值中心</h2><p className="text-xs text-text-muted mt-1">1 元 = 100 AI 算力积分。支付通道未开通时不会创建模拟订单。</p><div className="grid md:grid-cols-3 xl:grid-cols-6 gap-3 mt-5">{RECHARGE_OPTIONS.map(option => <button key={option.amountCents} onClick={() => chooseRecharge(option)} className="text-left border border-border-light rounded-xl p-4 hover:border-text-primary hover:bg-surface-secondary transition-all"><p className="font-semibold">{money(option.amountCents)}</p><p className="text-xs text-text-secondary mt-2">基础 {option.baseCredits.toLocaleString()}</p><p className="text-xs text-accent-purple">赠送 {option.bonusCredits.toLocaleString()}</p></button>)}</div></section>
     <section className="card p-6"><h2 className="text-base font-semibold">套餐升级</h2><div className="grid md:grid-cols-4 gap-3 mt-5">{PLAN_CATALOG.filter(p => !['custom','trial'].includes(p.code)).map(p => <div key={p.code} className={`rounded-xl border p-4 ${p.code === 'pro' ? 'border-text-primary' : 'border-border-light'}`}><p className="font-semibold">{p.name}{p.code === 'pro' && <span className="ml-2 text-[10px] text-accent-purple">推荐</span>}</p><p className="text-sm mt-2">{money(p.monthlyPrice)}/月 · {money(p.yearlyPrice)}/年</p><p className="text-xs text-text-muted mt-2">{p.monthlyCredits.toLocaleString()} 积分/月</p><div className="flex gap-2 mt-4"><button onClick={() => choosePlan(p,'monthly')} className="text-xs btn-secondary flex-1">月付购买</button><button onClick={() => choosePlan(p,'yearly')} className="text-xs btn-primary flex-1">年付购买</button></div></div>)}</div></section>
     <section className="grid lg:grid-cols-2 gap-5"><div className="card p-6"><h2 className="text-base font-semibold flex items-center gap-2"><Sparkles className="w-4 h-4" />本月使用情况</h2><div className="space-y-3 mt-4">{data?.usage?.length ? data.usage.map(item => <div key={item.featureType} className="flex justify-between text-sm"><span className="text-text-secondary">{item.featureType}</span><span>{Number(item.count)} 次 · {Number(item.credits).toLocaleString()} 积分</span></div>) : <p className="text-sm text-text-muted">本月还没有计费调用</p>}</div></div><div className="card p-6"><h2 className="text-base font-semibold">积分明细</h2><div className="space-y-3 mt-4 max-h-64 overflow-auto">{data?.ledger?.length ? data.ledger.map(item => <div key={item.id} className="flex justify-between gap-4 text-xs"><div><p className="text-text-primary">{item.description || item.featureType || item.type}</p><p className="text-text-muted mt-1">{new Date(item.createdAt).toLocaleString('zh-CN')}</p></div><span className={Number(item.amount) >= 0 ? 'text-success' : 'text-text-primary'}>{Number(item.amount) >= 0 ? '+' : ''}{item.amount}</span></div>) : <p className="text-sm text-text-muted">暂无积分流水</p>}</div></div></section>
-  {intent && <PaymentModal intent={intent} payments={data?.payments || {wechat:false,alipay:false}} onClose={()=>setIntent(null)} onCompleted={async()=>{await load();await refreshCredits();setNotice(intent.orderType==='credit_recharge'?'充值成功，积分已到账':'套餐已开通，积分已刷新');}} />}</div>;
+  {intent && <PaymentModal intent={intent} payments={data?.payments || {wechat:false,alipay:false}} onClose={()=>setIntent(null)} onCompleted={async()=>{await load();setNotice(intent.orderType==='credit_recharge'?'充值成功，积分已到账':'套餐已开通，积分已刷新');}} />}</div>;
 }

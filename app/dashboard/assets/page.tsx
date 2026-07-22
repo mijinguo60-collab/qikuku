@@ -23,13 +23,13 @@ export default async function AssetsPage() {
     `SELECT id, prompt, "imageUrl", "aspectRatio", "createdAt"
      FROM "ImageGeneration"
      WHERE "companyId" = ? AND status = 'completed' AND "imageUrl" IS NOT NULL
-     ORDER BY "createdAt" DESC`
+     ORDER BY "createdAt" DESC LIMIT 60`
   ).all(user.companyId) as ImageAsset[];
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-bold text-text-primary mb-1">图片素材库</h1><p className="text-sm text-text-secondary">{assets.length} 张由企业 AI 做图生成的图片素材</p></div>
+        <div><h1 className="text-2xl font-bold text-text-primary mb-1">图片素材库</h1><p className="text-sm text-text-secondary">最近 {assets.length} 张由企业 AI 做图生成的图片素材</p></div>
         <Link href="/dashboard/images" className="btn-primary text-sm">去 AI 做图</Link>
       </div>
 

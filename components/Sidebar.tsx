@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key, Wallet } from 'lucide-react';
+import { Brain, LayoutDashboard, FolderOpen, FileText, MessageSquare, Lightbulb, Image, Library, PenTool, GraduationCap, TrendingUp, Headphones, Shield, Settings, LogOut, ChevronLeft, Users, BarChart3, Key, Wallet, Loader2 } from 'lucide-react';
 import { isSidebarGroupVisible } from '@/lib/roles';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCreditBalance } from '@/hooks/useCreditBalance';
 
 const menuGroups = [
@@ -47,7 +47,10 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
   const [collapsed, setCollapsed] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => { setPendingHref(null); }, [pathname]);
 
   const { totalBalance: creditBalance, loading: creditsLoading } = useCreditBalance();
   const userRole = propRole || '';
@@ -89,17 +92,19 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
             {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{group.label}</p>}
             <div className="space-y-0.5">
               {group.items.map(item => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isActive = pendingHref === item.href || pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                const isPending = pendingHref === item.href && pathname !== item.href;
                 return (
-                  <Link key={item.href} href={item.href}
+                  <Link key={item.href} href={item.href} prefetch onClick={() => setPendingHref(item.href)}
                     className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
                       isActive
                         ? 'bg-white text-text-primary font-medium shadow-light'
                         : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
                     }`}
                     title={collapsed ? item.label : undefined}
+                    aria-busy={isPending}
                   >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    {isPending ? <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" /> : <item.icon className="w-4 h-4 flex-shrink-0" />}
                     {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
                   </Link>
                 );

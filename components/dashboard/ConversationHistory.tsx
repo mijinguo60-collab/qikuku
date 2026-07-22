@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Clock3, Loader2, MessageSquarePlus, Search } from 'lucide-react';
 
 export interface ConversationSummary {
@@ -29,27 +29,24 @@ export default function ConversationHistory({ mode, activeSessionId, refreshKey,
   const [sessions, setSessions] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const initializedRef = useRef(false);
 
-  async function loadSessions(initial = false) {
+  async function loadSessions() {
     try {
       const response = await fetch(`/api/chat-sessions?mode=${mode}`);
       const data = await response.json();
       if (!response.ok) return;
       const nextSessions = data.sessions || [];
       setSessions(nextSessions);
-      if (initial && !initializedRef.current) {
-        initializedRef.current = true;
-        if (nextSessions[0]) await onSelect(nextSessions[0].id);
-        else await createConversation();
-      }
+      // Loading history must not create an empty session or load an arbitrary
+      // session's messages. Both operations happen only after an explicit user
+      // action, keeping the chat shell responsive on first entry.
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    void loadSessions(!initializedRef.current);
+    void loadSessions();
     // Parent callbacks intentionally remain stable per page lifecycle; refreshKey triggers updates after a reply.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, refreshKey]);

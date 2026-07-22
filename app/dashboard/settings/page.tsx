@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   if (!user) return null;
   const db = getDb();
 
-  const company: any = db.prepare('SELECT * FROM "Company" WHERE id = ?').get(user.companyId) || {};
+  const company: any = await db.prepare('SELECT name,industry,description,logo FROM "Company" WHERE id = ?').get(user.companyId) || {};
 
   return (
     <div className="p-8 max-w-3xl mx-auto animate-fade-in">

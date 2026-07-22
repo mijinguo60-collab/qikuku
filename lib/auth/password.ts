@@ -2,6 +2,7 @@ import argon2 from 'argon2';
 import { createHmac, randomUUID } from 'node:crypto';
 import { getDb } from '@/lib/db';
 import { writeAuditLog } from '@/lib/audit-log';
+import { createServerSessionForVerifiedMembership, type CreatedServerSession } from '@/lib/session';
 
 const PASSWORD_MIN_LENGTH = 8;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -12,7 +13,7 @@ const MAX_REQUEST_FAILURES = 20;
 export type PasswordRequestMetadata = { ip: string; userAgent: string };
 export type PasswordUser = { id: string; name: string; email: string; companyId: string; role: string };
 export type PasswordLoginResult =
-  | { ok: true; user: PasswordUser }
+  | { ok: true; user: PasswordUser; session?: CreatedServerSession }
   | { ok: false; kind: 'invalid_credentials' | 'password_not_set' | 'account_disabled' | 'account_locked' | 'membership_invalid' | 'service_unavailable' };
 
 type UserRow = { id: string; name: string; email: string | null; role: string; status: string; companyId: string | null };
@@ -75,8 +76,9 @@ async function auditPasswordEvent(input: { action: string; user?: PasswordUser; 
 }
 
 /**
- * Password authentication only reads the user, credential and unique active
- * membership. It never creates business data or sends SMS.
+ * Password authentication validates the user, credential and unique active
+ * membership. Login callers may create the authenticated session inside the
+ * same transaction. It never creates enterprise business data or sends SMS.
  */
 export async function authenticateWithPhonePassword(
   phoneE164: string,
@@ -84,6 +86,7 @@ export async function authenticateWithPhonePassword(
   _metadata: PasswordRequestMetadata,
   db = getDb(),
   auditWriter: typeof writeAuditLog = writeAuditLog,
+  options: { rememberMe?: boolean; createSession?: boolean } = {},
 ): Promise<PasswordLoginResult> {
   try {
     const phoneHash = limitHash('phone-password-login-phone', phoneE164);
@@ -123,7 +126,11 @@ export async function authenticateWithPhonePassword(
       await tx.prepare(`UPDATE "PasswordCredential" SET "failedAttempts"=0,"lockedUntil"=NULL,"updatedAt"=? WHERE id=?`).run(timestamp, credential.id);
       await tx.prepare(`DELETE FROM "PasswordLoginAttempt" WHERE "phoneHash"=?`).run(phoneHash);
       await tx.prepare(`UPDATE "User" SET "companyId"=?,"lastLoginAt"=?,"updatedAt"=? WHERE id=?`).run(membership.companyId, timestamp, timestamp, user.id);
-      return { ok: true, user: { id: user.id, name: user.name, email: user.email || '', role: user.role, companyId: membership.companyId } };
+      const authenticatedUser = { id: user.id, name: user.name, email: user.email || '', role: user.role, companyId: membership.companyId };
+      const session = options.createSession
+        ? await createServerSessionForVerifiedMembership({ user: authenticatedUser, companyId: membership.companyId, membershipRole: membership.role, platformRole: user.role }, tx, { rememberMe: options.rememberMe })
+        : undefined;
+      return { ok: true, user: authenticatedUser, session };
     });
     if (result.ok) await auditPasswordEvent({ action: 'phone_password_login_succeeded', user: result.user }, auditWriter);
     else await auditPasswordEvent({ action: 'phone_password_login_failed', detail: { reason: result.kind } }, auditWriter);

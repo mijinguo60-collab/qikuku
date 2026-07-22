@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getRequestSession } from '@/lib/session';
-import { getActiveMembershipForUser } from '@/lib/membership';
 import { getAccessibleKnowledgeSpaceIds, searchKnowledge } from '@/lib/ai/rag-pipeline';
 import { getEnabledModel, getEnabledModels, toPublicModel } from '@/lib/ai/model-catalog';
 import { getLlmConfig, isRuntimeLlmProvider, llmChatCompletion, llmChatCompletionStream, type RuntimeLlmProvider } from '@/lib/ai/llm-provider';
@@ -43,10 +42,8 @@ function cleanIds(value: unknown, max = 100) {
 async function requireActiveCompanyOwner(request: NextRequest): Promise<SessionOwner> {
   const session = await getRequestSession(request);
   if (!session || !session.activeCompanyId) throw new ChatHttpError('未登录或尚未选择企业', 401);
-  const membership = await getActiveMembershipForUser(session.id, session.activeCompanyId);
-  if (!membership) throw new ChatHttpError('当前企业成员关系不可用', 403);
-  const company = await getDb().prepare(`SELECT id FROM "Company" WHERE id = ?`).get(session.activeCompanyId);
-  if (!company) throw new ChatHttpError('当前企业不存在或不可用', 409);
+  // getRequestSession already verifies the active company, active membership,
+  // user status and the single-company invariant in one database query.
   return { id: session.id, companyId: session.activeCompanyId };
 }
 

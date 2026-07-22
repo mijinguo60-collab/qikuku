@@ -133,6 +133,10 @@ export default function ChatPage() {
   const { updateCredits } = useCreditBalance();
   const endRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const bootstrapAbortRef = useRef<AbortController | null>(null);
+  const sessionLoadAbortRef = useRef<AbortController | null>(null);
+  const requestedSkill = searchParams.get('skill');
+  const requestedQuestion = searchParams.get('q');
 
   const selectedModel = models.find((model) => model.id === modelId) || models[0] || null;
   const selectedSkill = skills.find((skill) => skill.id === skillId) || null;
@@ -145,27 +149,34 @@ export default function ChatPage() {
   const webSearchReady = false;
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => { abortRef.current?.abort(); bootstrapAbortRef.current?.abort(); sessionLoadAbortRef.current?.abort(); }, []);
   useEffect(() => {
+    const controller = new AbortController();
+    bootstrapAbortRef.current?.abort();
+    bootstrapAbortRef.current = controller;
     void (async () => {
       try {
-        const response = await fetch('/api/ai/chat');
+        const response = await fetch('/api/ai/chat', { signal: controller.signal });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || '读取对话配置失败');
         const nextModels = data.models || [];
         setModels(nextModels); setSkills(data.skills || []); setSpaces(data.knowledgeSpaces || []);
-        const requestedSkill = searchParams.get('skill');
         if (requestedSkill && (data.skills || []).some((skill: Skill) => skill.id === requestedSkill)) setSkillId(requestedSkill);
         // Do not overwrite a user's in-page model selection when the route
         // search params are re-read by React. The catalog's first model is
         // only a startup fallback.
         if (nextModels[0]) setModelId((current) => current || nextModels[0].id);
-        const question = searchParams.get('q');
-        if (question) setInput(question.slice(0, 12_000));
-      } catch (requestError: any) { setError(requestError.message || '读取对话配置失败'); }
-      finally { setBootLoading(false); }
+        if (requestedQuestion) setInput(requestedQuestion.slice(0, 12_000));
+      } catch (requestError: any) { if (requestError.name !== 'AbortError') setError(requestError.message || '读取对话配置失败'); }
+      finally {
+        if (bootstrapAbortRef.current === controller) {
+          bootstrapAbortRef.current = null;
+          setBootLoading(false);
+        }
+      }
     })();
-  }, [searchParams]);
+    return () => controller.abort();
+  }, [requestedQuestion, requestedSkill]);
 
   async function createSession(): Promise<ConversationSummary | null> {
     try {
@@ -179,8 +190,11 @@ export default function ChatPage() {
 
   async function loadSession(id: string) {
     if (loading) return;
+    sessionLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    sessionLoadAbortRef.current = controller;
     try {
-      const response = await fetch(`/api/chat-sessions/${encodeURIComponent(id)}`);
+      const response = await fetch(`/api/chat-sessions/${encodeURIComponent(id)}`, { signal: controller.signal });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || '读取对话失败');
       setSessionId(data.session.id);
@@ -192,7 +206,7 @@ export default function ChatPage() {
         creditsUsed: typeof message.creditsUsed === 'number' ? message.creditsUsed : 0,
       }));
       setMessages(restored.length ? restored : [welcome]);
-    } catch (requestError: any) { setError(requestError.message || '读取对话失败'); }
+    } catch (requestError: any) { if (requestError.name !== 'AbortError') setError(requestError.message || '读取对话失败'); }
   }
 
   function toggleSpace(id: string) {
@@ -237,17 +251,14 @@ export default function ChatPage() {
     } finally { if (abortRef.current === controller) abortRef.current = null; setLoading(false); }
   }
 
-  if (bootLoading) return <div className="p-10 text-sm text-text-muted"><Loader2 className="inline w-4 h-4 animate-spin mr-2" />正在加载统一 AI 对话…</div>;
-  if (error && !models.length) return <div className="p-10 text-sm text-danger">{error}</div>;
-
   return <div className="flex h-[calc(100vh-0px)] min-h-[600px] bg-surface-primary">
     <ConversationHistory mode="unified" activeSessionId={sessionId} refreshKey={historyRevision} onSelect={loadSession} onCreate={createSession} />
     <section className="min-w-0 flex-1 flex flex-col">
       <header className="relative border-b border-border-light bg-white/70 px-4 md:px-6 py-3 flex flex-wrap items-center gap-2">
         <div className="relative">
           <button type="button" aria-expanded={modelOpen} onClick={() => setModelOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-border-light bg-white px-3 py-2 text-xs font-medium shadow-sm transition hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-accent-blue/30">
-            {selectedModel ? <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-blue/10 text-accent-blue"><ProviderIcon provider={selectedModel.iconKey} /></span> : <Bot className="w-4 h-4 text-accent-blue" />}
-            {selectedModel?.displayName || '暂无可用模型'}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${modelOpen ? 'rotate-180' : ''}`} />
+            {selectedModel ? <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-blue/10 text-accent-blue"><ProviderIcon provider={selectedModel.iconKey} /></span> : bootLoading ? <Loader2 className="w-4 h-4 text-accent-blue animate-spin" /> : <Bot className="w-4 h-4 text-accent-blue" />}
+            {selectedModel?.displayName || (bootLoading ? '正在加载模型…' : '暂无可用模型')}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${modelOpen ? 'rotate-180' : ''}`} />
           </button>
           {modelOpen && <div className="fixed inset-x-0 bottom-0 z-30 max-h-[86vh] overflow-hidden rounded-t-[24px] border border-border-light bg-white shadow-2xl sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:left-0 sm:mt-3 sm:max-h-[min(74vh,660px)] sm:w-[min(94vw,680px)] sm:rounded-[24px]">
             <div className="border-b border-border-light px-4 py-3 sm:px-5"><div className="mb-2 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-text-primary">选择对话模型</p><p className="mt-0.5 text-[11px] text-text-muted">所有模型均会优先检索当前企业知识库。</p></div><button type="button" aria-label="关闭模型选择器" onClick={() => setModelOpen(false)} className="rounded-lg p-1.5 text-text-muted transition hover:bg-surface-secondary"><X className="h-4 w-4" /></button></div><label className="relative block"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" /><input autoFocus value={modelSearch} onChange={(event) => setModelSearch(event.target.value)} placeholder="搜索模型或厂商" className="w-full rounded-xl border border-border-light bg-surface-secondary/70 py-2.5 pl-9 pr-3 text-xs outline-none transition focus:border-accent-blue/40 focus:bg-white" /></label></div>

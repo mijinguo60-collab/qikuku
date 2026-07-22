@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, space });
   } catch (error: any) {
-    console.error('[KNOWLEDGE_SPACES_CREATE]', error.message);
-    return NextResponse.json({ error: '创建知识空间失败，请稍后重试' }, { status: 500 });
+    if (process.env.NODE_ENV === 'development') console.error('[KNOWLEDGE_SPACES_CREATE]', { code: error?.code || 'UNKNOWN' });
+    return NextResponse.json({ error: '创建知识空间失败，请稍后重试' }, { status: 503 });
   }
 }

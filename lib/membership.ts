@@ -1,17 +1,22 @@
 import { NextRequest } from 'next/server';
-import { getDb } from '@/lib/db';
 import { getRequestSession } from '@/lib/session';
-
-export async function getActiveMembershipForUser(userId: string, activeCompanyId?: string | null) {
-  const db = getDb();
-  if (!activeCompanyId) return null;
-  return db.prepare(`SELECT * FROM "CompanyMembership" WHERE "userId"=? AND "companyId"=? AND status='active'`).get(userId, activeCompanyId);
-}
 
 export async function getActiveMembership(request: NextRequest) {
   const session = await getRequestSession(request); if (!session) return null;
-  const membership = await getActiveMembershipForUser(session.id, session.activeCompanyId);
-  return membership ? { session, membership } : null;
+  if (!session.activeCompanyId) return null;
+  // getRequestSession has already performed the definitive active membership,
+  // company status and unique-membership checks in one SQL query. Re-querying
+  // it here only adds cross-region latency and cannot strengthen authorization.
+  return {
+    session,
+    membership: {
+      id: session.membershipId,
+      userId: session.id,
+      companyId: session.activeCompanyId,
+      role: session.role,
+      status: 'active',
+    },
+  };
 }
 
 export async function requireCompanyRole(request: NextRequest, roles: string[]) {

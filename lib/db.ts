@@ -6,7 +6,6 @@ import { Pool, types as pgTypes } from 'pg';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import path from 'path';
 
-let db: any = undefined;
 const serverTestDbContext = new AsyncLocalStorage<any>();
 const URL = process.env.DATABASE_URL || '';
 const REQUIRE_POSTGRES = process.env.DATABASE_REQUIRE_POSTGRES === 'true';
@@ -15,6 +14,17 @@ const PG_CONNECTION_TIMEOUT_MS = 10_000;
 const PG_IDLE_TIMEOUT_MS = 30_000;
 
 const PG_TIMESTAMP_WITHOUT_TIMEZONE_OID = 1114;
+
+type DatabaseGlobal = {
+  db?: any;
+};
+
+// Next.js can evaluate a server module more than once during development hot
+// reloads (and from different route bundles). Keep the process-local adapter on
+// globalThis so those evaluations still share one PostgreSQL pool. This is an
+// infrastructure cache only: it never stores request, user, or company data.
+const databaseGlobal = globalThis as typeof globalThis & { __qikukuDatabase?: DatabaseGlobal };
+const globalDatabase = databaseGlobal.__qikukuDatabase ?? (databaseGlobal.__qikukuDatabase = {});
 
 // Prisma DateTime 在 PostgreSQL 中使用不带时区的 timestamp。
 // 自定义 pg 适配器必须按 UTC 解析，避免受运行机器本地时区影响。
@@ -39,6 +49,7 @@ function createPgDb(): any {
   pool.on('error', (error: NodeJS.ErrnoException) => {
     console.error('[DB] Idle PostgreSQL client error:', error.code || 'UNKNOWN');
   });
+  if (process.env.NODE_ENV === 'development') console.info('[DB] PostgreSQL pool created');
   const createClientDb = (client: any) => ({
     prepare: (sql: string) => ({
       get: async (...params: any[]) => {
@@ -118,16 +129,15 @@ function createMockDb(): any {
 export function getDb(): any {
   const scopedDb = serverTestDbContext.getStore();
   if (scopedDb) return scopedDb;
-  if (db) return db;
+  if (globalDatabase.db) return globalDatabase.db;
   const isPg = URL.startsWith('postgresql://') || URL.startsWith('postgres://');
   if (REQUIRE_POSTGRES && !isPg) {
     throw new Error('PostgreSQL is required for this operation');
   }
   if (isPg) {
     try {
-      db = createPgDb();
-      console.log('[DB] PostgreSQL connected');
-      return db;
+      globalDatabase.db = createPgDb();
+      return globalDatabase.db;
     } catch (e: any) {
       console.error('[DB] PostgreSQL failed:', e.message);
       if (REQUIRE_POSTGRES) throw e;
@@ -135,15 +145,15 @@ export function getDb(): any {
   }
   if (REQUIRE_POSTGRES) throw new Error('PostgreSQL connection could not be created');
   try {
-    db = createSqliteDb();
+    globalDatabase.db = createSqliteDb();
     console.log('[DB] SQLite connected');
-    return db;
+    return globalDatabase.db;
   } catch (e: any) {
     console.error('[DB] SQLite failed:', e.message);
   }
-  db = createMockDb();
+  globalDatabase.db = createMockDb();
   console.warn('[DB] Using mock database');
-  return db;
+  return globalDatabase.db;
 }
 
 /** Server-test-only async scope; never derived from HTTP request data. */

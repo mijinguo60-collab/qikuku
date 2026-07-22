@@ -8,8 +8,6 @@ interface RowData {
   id: string; filename: string; fileType: string; status: string;
   sensitivityLevel: string; spaceName: string; knowledgeSpaceId: string;
   companyId: string; createdAt: string; updatedAt: string;
-  extractedText: string | null; fileUrl: string | null; fileSize: number | null;
-  tags: string | null; uploadedBy: string | null; expiresAt: string | null;
 }
 
 const statusMap: Record<string, { label: string; color: string }> = {
@@ -29,21 +27,23 @@ export default async function FilesPage() {
   if (!user) return null;
   const db = getDb();
 
-  const files = await db.prepare(
-    `SELECT d.*, ks.name as spaceName FROM "Document" d
+  const [files, spaces] = await Promise.all([
+    db.prepare(
+    `SELECT d.id,d.filename,d."fileType",d.status,d."sensitivityLevel",d."knowledgeSpaceId",d."companyId",d."createdAt",d."updatedAt",ks.name as "spaceName" FROM "Document" d
      JOIN "KnowledgeSpace" ks ON d."knowledgeSpaceId" = ks.id
-     WHERE d."companyId" = ? ORDER BY d."createdAt" DESC`
-  ).all(user.companyId) as RowData[];
-  const spaces = await db.prepare(
-    `SELECT id, name FROM "KnowledgeSpace" WHERE "companyId" = ? ORDER BY "createdAt" DESC`
-  ).all(user.companyId) as { id: string; name: string }[];
+     WHERE d."companyId" = ? ORDER BY d."createdAt" DESC LIMIT 100`
+    ).all(user.companyId) as Promise<RowData[]>,
+    db.prepare(
+      `SELECT id, name FROM "KnowledgeSpace" WHERE "companyId" = ? ORDER BY "createdAt" DESC`
+    ).all(user.companyId) as Promise<{ id: string; name: string }[]>,
+  ]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-text-primary mb-1">文件中心</h1>
-          <p className="text-sm text-text-secondary">{files.length} 个文件</p>
+          <p className="text-sm text-text-secondary">最近 {files.length} 个文件</p>
         </div>
         <FileUploadButton spaces={spaces} />
       </div>

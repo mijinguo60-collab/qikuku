@@ -161,17 +161,19 @@ export async function listOwnedChatSessions(owner: SessionOwner, mode: ChatSessi
   const db = getDb();
   if (mode === 'unified') {
     return await db.prepare(
-      `SELECT s.*, (SELECT COUNT(*) FROM "ChatMessage" m WHERE m."sessionId" = s.id) AS "messageCount"
+      `SELECT s.id,s."companyId",s."userId",s.mode,s."skillId",s.title,s."createdAt",s."updatedAt",
+              (SELECT COUNT(*) FROM "ChatMessage" m WHERE m."sessionId" = s.id) AS "messageCount"
        FROM "ChatSession" s
        WHERE s."companyId" = ? AND s."userId" = ? AND s.mode IN ('knowledge', 'skill')
-       ORDER BY s."updatedAt" DESC`
+       ORDER BY s."updatedAt" DESC LIMIT 30`
     ).all(owner.companyId, owner.id) as ChatSessionRecord[];
   }
   return await db.prepare(
-    `SELECT s.*, (SELECT COUNT(*) FROM "ChatMessage" m WHERE m."sessionId" = s.id) AS "messageCount"
+    `SELECT s.id,s."companyId",s."userId",s.mode,s."skillId",s.title,s."createdAt",s."updatedAt",
+            (SELECT COUNT(*) FROM "ChatMessage" m WHERE m."sessionId" = s.id) AS "messageCount"
      FROM "ChatSession" s
      WHERE s."companyId" = ? AND s."userId" = ? AND s.mode = ?
-     ORDER BY s."updatedAt" DESC`
+     ORDER BY s."updatedAt" DESC LIMIT 30`
   ).all(owner.companyId, owner.id, mode) as ChatSessionRecord[];
 }
 

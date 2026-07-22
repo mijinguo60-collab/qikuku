@@ -36,11 +36,15 @@ export function getTodayIndustryTopics(companyIndustry?: string | null): TodayIn
 
 export async function getDashboardSummary(companyId: string) {
   const db = getDb();
+  const startedAt = Date.now();
   try {
-    const com = await db.prepare('SELECT * FROM "Company" WHERE id = ?').get(companyId);
-    const dc = await db.prepare('SELECT COUNT(*) as c FROM "Document" WHERE "companyId" = ?').get(companyId) as any;
-    const sc = await db.prepare('SELECT COUNT(*) as c FROM "KnowledgeSpace" WHERE "companyId" = ?').get(companyId) as any;
-    const sk = await db.prepare('SELECT COUNT(*) as c FROM "Skill" WHERE "enabled" = true AND ("companyId" = ? OR "companyId" IS NULL)').get(companyId) as any;
+    const [com, dc, sc, sk] = await Promise.all([
+      db.prepare('SELECT name,industry FROM "Company" WHERE id = ?').get(companyId),
+      db.prepare('SELECT COUNT(*) as c FROM "Document" WHERE "companyId" = ?').get(companyId),
+      db.prepare('SELECT COUNT(*) as c FROM "KnowledgeSpace" WHERE "companyId" = ?').get(companyId),
+      db.prepare('SELECT COUNT(*) as c FROM "Skill" WHERE "enabled" = true AND ("companyId" = ? OR "companyId" IS NULL)').get(companyId),
+    ]) as [any, any, any, any];
+    if (process.env.NODE_ENV === 'development') console.info('[PERF] Dashboard summary', { durationMs: Date.now() - startedAt });
     return {
       companyName: (com as any)?.name || '你的企业',
       companyIndustry: (com as any)?.industry || null,
@@ -48,8 +52,8 @@ export async function getDashboardSummary(companyId: string) {
       spaceCount: sc?.c || 0,
       skillCount: sk?.c || 0,
     };
-  } catch (e: any) {
-    console.error('[dashboard-data] Query failed:', e.message);
-    return { companyName: '你的企业', companyIndustry: null, docCount: 0, spaceCount: 0, skillCount: 0 };
+  } catch (error: any) {
+    if (process.env.NODE_ENV === 'development') console.error('[dashboard-data] Query failed:', { code: error?.code || 'UNKNOWN' });
+    throw new Error('dashboard_data_unavailable');
   }
 }

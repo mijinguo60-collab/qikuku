@@ -14,7 +14,8 @@ function hasTransaction(db: any) {
   return typeof db.transactionAsync === 'function';
 }
 
-async function inTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+// eslint-disable-next-line no-unused-vars -- The tuple keeps transaction callbacks type-safe.
+async function inTransaction<T>(fn: (..._args: [any]) => Promise<T>): Promise<T> {
   const db = getDb();
   return hasTransaction(db) ? db.transactionAsync(fn) : fn(db);
 }
@@ -50,8 +51,11 @@ export async function getCreditBalance(companyId: string) {
 }
 
 export async function getCreditBreakdown(companyId: string) {
-  const account = await getDb().prepare(`SELECT * FROM "CreditAccount" WHERE "companyId" = ?`).get(companyId);
-  const expiring = await getDb().prepare(`SELECT COALESCE(SUM("remainingAmount"), 0) as amount, MIN("expiresAt") as "expiresAt" FROM "CreditGrant" WHERE "companyId" = ? AND "remainingAmount" > 0 AND "expiresAt" IS NOT NULL AND "expiresAt" > ?`).get(companyId, NOW());
+  const db = getDb();
+  const [account, expiring] = await Promise.all([
+    db.prepare(`SELECT * FROM "CreditAccount" WHERE "companyId" = ?`).get(companyId),
+    db.prepare(`SELECT COALESCE(SUM("remainingAmount"), 0) as amount, MIN("expiresAt") as "expiresAt" FROM "CreditGrant" WHERE "companyId" = ? AND "remainingAmount" > 0 AND "expiresAt" IS NOT NULL AND "expiresAt" > ?`).get(companyId, NOW()),
+  ]);
   return {
     totalBalance: Number(account?.totalBalance || 0), packageBalance: Number(account?.packageBalance || 0),
     purchasedBalance: Number(account?.purchasedBalance || 0), bonusBalance: Number(account?.bonusBalance || 0),

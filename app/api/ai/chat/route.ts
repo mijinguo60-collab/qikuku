@@ -5,8 +5,8 @@ export async function GET(request: NextRequest) {
   try {
     return await getUnifiedChatBootstrap(request);
   } catch (error: any) {
-    const status = error?.status || 500;
-    return NextResponse.json({ error: error?.message || '读取统一对话配置失败，请稍后重试' }, { status });
+    const status = error?.status || 503;
+    return NextResponse.json({ error: error?.status ? error.message : '读取统一对话配置失败，请稍后重试' }, { status });
   }
 }
 

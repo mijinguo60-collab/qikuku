@@ -22,6 +22,7 @@
     "test:company-invitations:db": "COMPANY_INVITATIONS_DB_ROLLBACK_TEST=1 NODE_OPTIONS='--no-network-family-autoselection --dns-result-order=ipv4first' tsx scripts/test-company-invitations-db-rollback.ts",
     "test:company-invitation-routes:db": "NODE_ENV=test COMPANY_INVITATION_ROUTES_DB_ROLLBACK_TEST=1 NODE_OPTIONS='--no-network-family-autoselection --dns-result-order=ipv4first' tsx scripts/test-company-invitation-routes-db-rollback.ts",
     "test:server-db-context": "NODE_ENV=test tsx scripts/test-server-db-context.ts",
+    "test:performance-guards": "tsx scripts/test-performance-guards.ts",
     "test:session-edge": "tsx scripts/test-session-edge-middleware.ts",
     "check:image": "node scripts/check-image.mjs",
     "check:models": "node scripts/check-models.mjs",
