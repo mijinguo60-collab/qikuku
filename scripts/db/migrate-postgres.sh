@@ -48,7 +48,7 @@ const asFields = (url) => ({ host: url.hostname, port: url.port || '5432', datab
 const escapePass = (value) => value.replace(/\\/g, '\\\\').replace(/:/g, '\\:');
 const sourceFields = asFields(source);
 const targetFields = asFields(target);
-const service = (name, fields, sslmode, extra = '') => `[${name}]\nhost=${fields.host}\nport=${fields.port}\ndbname=${fields.database}\nuser=${fields.user}\nsslmode=${sslmode}\n${extra}`;
+const service = (name, fields, sslmode, extra = '') => `[${name}]\nhost=${fields.host}\nport=${fields.port}\ndbname=${fields.database}\nuser=${fields.user}\nconnect_timeout=15\nsslmode=${sslmode}\n${extra}`;
 // The pinned Neon test direct endpoint's existing connection policy is encrypted
 // `require`; the domestic target remains strictly verified with its supplied CA.
 writeFileSync(process.argv[2], `${service('source', sourceFields, 'require')}\n${service('target', targetFields, 'verify-full', `sslrootcert=${targetCa}\n`)}`, { mode: 0o600 });

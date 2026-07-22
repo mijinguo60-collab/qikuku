@@ -30,6 +30,7 @@ async function main() {
   assert.match(migrate, /service\('target', targetFields, 'verify-full'/);
   assert.match(migrate, /PGSERVICEFILE/);
   assert.match(migrate, /PGPASSFILE/);
+  assert.match(migrate, /connect_timeout=15/);
   assert.doesNotMatch(migrate, /pg_dump --dbname="\$SOURCE_DATABASE_URL"/);
   assert.match(migrate, /migration_succeeded=false/);
   assert.match(migrate, /chmod 600 "\$dump_file"/);
