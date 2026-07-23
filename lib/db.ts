@@ -4,8 +4,8 @@
  */
 import { Pool, types as pgTypes } from 'pg';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { readFileSync } from 'node:fs';
 import path from 'path';
+import { connectionStringWithoutTlsParameters, strictPostgresTlsConfig } from './strict-pg-tls';
 
 const serverTestDbContext = new AsyncLocalStorage<any>();
 const URL = process.env.DATABASE_URL || '';
@@ -42,11 +42,7 @@ function toPgParams(sql: string): string {
 function getPostgresSslConfig() {
   const certificatePath = process.env.DATABASE_SSL_CA_PATH;
   if (!certificatePath) return undefined;
-  try {
-    return { ca: readFileSync(certificatePath, 'utf8'), rejectUnauthorized: true };
-  } catch {
-    throw new Error('DATABASE_SSL_CA_PATH 证书文件无法读取');
-  }
+  return strictPostgresTlsConfig(URL, certificatePath);
 }
 
 function getPostgresConnectionString() {
@@ -54,9 +50,7 @@ function getPostgresConnectionString() {
   // pg gives SSL parameters embedded in a connection string precedence over
   // the explicit ssl object. Remove them so our pinned local CA below is the
   // single source of truth and rejectUnauthorized remains enforced.
-  const parsed = new globalThis.URL(URL);
-  for (const key of ['sslmode', 'sslrootcert', 'sslcert', 'sslkey']) parsed.searchParams.delete(key);
-  return parsed.toString();
+  return connectionStringWithoutTlsParameters(URL);
 }
 
 function createPgDb(): any {
