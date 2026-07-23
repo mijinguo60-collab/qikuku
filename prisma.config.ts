@@ -12,20 +12,12 @@ if (process.env.NODE_ENV !== "production") {
 const migrationUrl = process.env["PRISMA_MIGRATION_DATABASE_URL"];
 const directUrl = process.env["DATABASE_DIRECT_URL"];
 
-if (process.env.NODE_ENV === "production" && !migrationUrl) {
-  throw new Error("PRISMA_MIGRATION_DATABASE_URL is required for production Prisma commands.");
-}
-
-if (!migrationUrl && !directUrl) {
-  throw new Error("DATABASE_DIRECT_URL is required outside production when no migration URL is supplied.");
-}
-
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: migrationUrl ?? directUrl!,
+    url: migrationUrl ?? directUrl,
   },
 });
