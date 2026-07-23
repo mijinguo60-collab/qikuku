@@ -37,6 +37,12 @@ Docker Compose 的复杂度最低，镜像可用不可变 tag 回滚；它避免
 
 ## 镜像、迁移和回滚顺序
 
+### 离线交付的数据库工具镜像
+
+生产迁移使用独立的 `Dockerfile.migrator` 构建，不改变 Web 运行镜像的行为。该镜像只包含 Prisma CLI、生产依赖、`prisma/schema.prisma` 和完整迁移历史；以非 root 用户运行、不暴露端口，也不会启动 Next.js。它不含环境文件、CA、密码、Token、私钥或数据库连接串。
+
+在 Docker Hub 访问不稳定时，在受控 Mac 上为 `linux/amd64` 构建迁移镜像并拉取官方 `postgres:17-bookworm`，分别 `docker save | gzip` 后生成 SHA-256。上传时先传至服务器目标目录中的 `.part` 文件，校验哈希后才原子改名并 `docker load`。迁移镜像只可在明确提供运行时环境变量并经人工批准的维护窗口执行；交付与导入阶段不得连接数据库或运行迁移。
+
 在已验证 TLS 的 CVM 上：
 
 1. `deploy/scripts/build-image.sh` 构建 CVM 本机架构镜像。

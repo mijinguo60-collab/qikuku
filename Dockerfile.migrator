@@ -1,0 +1,41 @@
+# A deliberately separate image for the one-off production migration job.
+# It does not change the web application's Dockerfile or runtime image.
+ARG NODE_VERSION=20.19.0
+
+FROM node:${NODE_VERSION}-bookworm-slim AS dependencies
+WORKDIR /app
+
+# Native production dependencies may require a build fallback. Keep build
+# tooling out of the runtime image and install only the required packages.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+FROM node:${NODE_VERSION}-bookworm-slim AS migrator
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Prisma uses the local OpenSSL version to select its bundled engine. This is
+# a runtime prerequisite, not build tooling; no certificates are installed.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy only the Prisma CLI/runtime dependencies and migration inputs. The
+# build context's .dockerignore excludes environment files and credentials.
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY prisma/schema.prisma ./prisma/schema.prisma
+COPY prisma/migrations ./prisma/migrations
+
+RUN groupadd --system --gid 1001 qikuku \
+  && useradd --system --uid 1001 --gid qikuku --home-dir /app qikuku \
+  && chown -R qikuku:qikuku /app
+
+USER qikuku
+
+# This image is a one-off job: it exposes no port and never starts Next.js.
+ENTRYPOINT ["npx", "prisma", "migrate", "deploy"]
