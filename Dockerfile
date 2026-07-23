@@ -10,7 +10,12 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates dumb-init \
   && rm -rf /var/lib/apt/lists/*
 
-FROM base AS deps
+FROM base AS build-deps
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM build-deps AS deps
 COPY package.json package-lock.json ./
 RUN npm ci
 
