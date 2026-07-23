@@ -1,5 +1,5 @@
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 . "$(dirname -- "$0")/common.sh"
 require_deploy_files
 compose stop app

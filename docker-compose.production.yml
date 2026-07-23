@@ -2,12 +2,10 @@ name: qikuku
 
 services:
   app:
-    image: ${QIKUKU_IMAGE:-qikuku:local}
-    build:
-      context: .
-      target: runner
+    image: ${QIKUKU_IMAGE:?QIKUKU_IMAGE is required}
+    pull_policy: never
     env_file:
-      - ${QIKUKU_ENV_FILE:-.env.production.local}
+      - ${QIKUKU_ENV_FILE:?QIKUKU_ENV_FILE is required}
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
@@ -16,7 +14,7 @@ services:
     ports:
       - '127.0.0.1:${QIKUKU_APP_PORT:-3000}:3000'
     volumes:
-      - ${DATABASE_SSL_CA_HOST_PATH:-/etc/qikuku/tencentdb-ca.pem}:/run/secrets/tencentdb-ca.pem:ro
+      - ${DATABASE_SSL_CA_HOST_PATH:?DATABASE_SSL_CA_HOST_PATH is required}:/run/secrets/tencentdb-ca.pem:ro
     init: true
     restart: unless-stopped
     security_opt:
@@ -25,6 +23,14 @@ services:
       - ALL
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: '5'
+    cpus: '3.0'
+    mem_limit: 4g
+    pids_limit: 256
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/api/health/live').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -33,19 +39,25 @@ services:
       retries: 3
 
   migrate:
-    image: ${QIKUKU_MIGRATOR_IMAGE:-qikuku:migrator-local}
-    build:
-      context: .
-      target: migrator
+    # A separately imported migrator image is required before this profile can
+    # be used. The safe placeholder cannot be pulled because pull_policy is
+    # never, and is deliberately not prepared in this deployment phase.
+    image: ${QIKUKU_MIGRATOR_IMAGE:-qikuku-migrator:unavailable}
+    pull_policy: never
     profiles: ['tools']
     env_file:
-      - ${QIKUKU_ENV_FILE:-.env.production.local}
+      - ${QIKUKU_ENV_FILE:?QIKUKU_ENV_FILE is required}
     environment:
       NODE_ENV: production
       DATABASE_REQUIRE_POSTGRES: 'true'
     volumes:
-      - ${DATABASE_SSL_CA_HOST_PATH:-/etc/qikuku/tencentdb-ca.pem}:/run/secrets/tencentdb-ca.pem:ro
+      - ${DATABASE_SSL_CA_HOST_PATH:?DATABASE_SSL_CA_HOST_PATH is required}:/run/secrets/tencentdb-ca.pem:ro
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: '5'

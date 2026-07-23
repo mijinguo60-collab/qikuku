@@ -1,16 +1,51 @@
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
-PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-COMPOSE_FILE="$PROJECT_ROOT/docker-compose.production.yml"
-QIKUKU_ENV_FILE=${QIKUKU_ENV_FILE:-/etc/qikuku/production.env}
-DATABASE_SSL_CA_HOST_PATH=${DATABASE_SSL_CA_HOST_PATH:-/etc/qikuku/tencentdb-ca.pem}
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+DEPLOY_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
+COMPOSE_FILE="$DEPLOY_ROOT/docker-compose.production.yml"
+COMPOSE_ENV_FILE=/etc/qikuku/compose.env
+
+require_root_file() {
+  local file="$1"
+  local forbidden_mode="$2"
+  [[ -f "$file" && -r "$file" ]] || {
+    echo 'Required deployment file is missing or unreadable.' >&2
+    exit 2
+  }
+  [[ "$(stat -c '%U:%G' "$file")" == 'root:root' ]] || {
+    echo 'Required deployment file must be owned by root:root.' >&2
+    exit 2
+  }
+  local mode
+  mode=$(stat -c '%a' "$file")
+  (( (8#$mode & 8#$forbidden_mode) == 0 )) || {
+    echo 'Required deployment file has unsafe permissions.' >&2
+    exit 2
+  }
+}
+
+load_compose_environment() {
+  require_root_file "$COMPOSE_ENV_FILE" 077
+  set -a
+  # This root-owned, non-sensitive file only provides image and file paths.
+  # shellcheck disable=SC1090
+  source "$COMPOSE_ENV_FILE"
+  set +a
+  : "${QIKUKU_IMAGE:?QIKUKU_IMAGE is required in compose.env}"
+  : "${QIKUKU_ENV_FILE:?QIKUKU_ENV_FILE is required in compose.env}"
+  : "${DATABASE_SSL_CA_HOST_PATH:?DATABASE_SSL_CA_HOST_PATH is required in compose.env}"
+  [[ -f "$COMPOSE_FILE" ]] || {
+    echo 'Production Compose file is missing.' >&2
+    exit 2
+  }
+}
+
+load_compose_environment
 
 require_deploy_files() {
-  if [ ! -r "$QIKUKU_ENV_FILE" ] || [ ! -r "$DATABASE_SSL_CA_HOST_PATH" ]; then
-    echo "Production env file or TencentDB CA file is missing or unreadable." >&2
-    exit 2
-  fi
+  require_root_file "$QIKUKU_ENV_FILE" 077
+  require_root_file "$DATABASE_SSL_CA_HOST_PATH" 022
   if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
     echo "Docker Engine and Docker Compose v2 are required." >&2
     exit 2
@@ -18,10 +53,9 @@ require_deploy_files() {
 }
 
 compose() {
-  QIKUKU_ENV_FILE="$QIKUKU_ENV_FILE" DATABASE_SSL_CA_HOST_PATH="$DATABASE_SSL_CA_HOST_PATH" \
-    docker compose -f "$COMPOSE_FILE" --env-file "$QIKUKU_ENV_FILE" "$@"
+  docker compose --env-file "$COMPOSE_ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 validate_env() {
-  (cd "$PROJECT_ROOT" && npx tsx scripts/deploy/check-production-env.ts --file "$QIKUKU_ENV_FILE")
+  "$SCRIPT_DIR/validate-production-env.sh" "$QIKUKU_ENV_FILE"
 }

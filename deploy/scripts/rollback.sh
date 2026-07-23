@@ -1,5 +1,5 @@
-#!/usr/bin/env sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 . "$(dirname -- "$0")/common.sh"
 require_deploy_files
 
@@ -8,5 +8,5 @@ if [ -z "${QIKUKU_ROLLBACK_IMAGE:-}" ]; then
   exit 2
 fi
 
-QIKUKU_IMAGE="$QIKUKU_ROLLBACK_IMAGE" compose up -d --no-build app
+QIKUKU_IMAGE="$QIKUKU_ROLLBACK_IMAGE" compose up -d --no-build --pull never app
 echo "Code rollback completed. Prisma migrations are forward-only; do not restore data automatically."
