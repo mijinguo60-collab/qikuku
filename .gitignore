@@ -64,3 +64,6 @@ prisma/dev.db-shm
 prisma/dev.db-wal
 *.db-shm
 *.db-wal
+.env
+.env.local
+.env.*.local
