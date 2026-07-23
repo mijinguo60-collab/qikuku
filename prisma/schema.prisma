@@ -145,6 +145,8 @@ model Company {
   paymentOrders  PaymentOrder[]
   memberships    CompanyMembership[]
   invitations    CompanyInvitation[]
+
+  @@index([status], map: "Company_status_idx")
 }
 
 model KnowledgeSpace {
