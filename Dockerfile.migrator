@@ -12,7 +12,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --no-audit --no-fund
 
 FROM node:${NODE_VERSION}-bookworm-slim AS migrator
 WORKDIR /app
@@ -28,14 +28,18 @@ RUN apt-get update \
 # build context's .dockerignore excludes environment files and credentials.
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./prisma.config.ts
 COPY prisma/schema.prisma ./prisma/schema.prisma
 COPY prisma/migrations ./prisma/migrations
+COPY scripts/deploy/postgres-tls-tunnel.mjs ./scripts/deploy/postgres-tls-tunnel.mjs
+COPY scripts/deploy/run-migrations.mjs ./scripts/deploy/run-migrations.mjs
 
 RUN groupadd --system --gid 1001 qikuku \
   && useradd --system --uid 1001 --gid qikuku --home-dir /app qikuku \
+  && chmod 0555 scripts/deploy/postgres-tls-tunnel.mjs scripts/deploy/run-migrations.mjs \
   && chown -R qikuku:qikuku /app
 
 USER qikuku
 
 # This image is a one-off job: it exposes no port and never starts Next.js.
-ENTRYPOINT ["npx", "prisma", "migrate", "deploy"]
+ENTRYPOINT ["node", "scripts/deploy/run-migrations.mjs"]

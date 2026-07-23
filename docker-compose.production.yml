@@ -45,17 +45,18 @@ services:
     image: ${QIKUKU_MIGRATOR_IMAGE:-qikuku-migrator:unavailable}
     pull_policy: never
     profiles: ['tools']
-    env_file:
-      - ${QIKUKU_ENV_FILE:?QIKUKU_ENV_FILE is required}
     environment:
       NODE_ENV: production
-      DATABASE_REQUIRE_POSTGRES: 'true'
+      DATABASE_DIRECT_URL: ${DATABASE_DIRECT_URL:?DATABASE_DIRECT_URL is required for migrate}
+      DATABASE_SSL_CA_PATH: /run/secrets/tencentdb-ca.pem
+      DATABASE_PRIVATE_HOSTS: ${DATABASE_PRIVATE_HOSTS:-}
     volumes:
       - ${DATABASE_SSL_CA_HOST_PATH:?DATABASE_SSL_CA_HOST_PATH is required}:/run/secrets/tencentdb-ca.pem:ro
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    restart: 'no'
     logging:
       driver: local
       options:

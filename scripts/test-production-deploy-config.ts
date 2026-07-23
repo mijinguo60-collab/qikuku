@@ -48,7 +48,8 @@ async function main() {
   const dockerfile = read('Dockerfile');
   const compose = read('docker-compose.production.yml');
   const nginx = read('deploy/nginx/qikuku.conf.template');
-  const migration = read('scripts/deploy/run-migrations.sh');
+  const migrationEntrypoint = read('scripts/deploy/run-migrations.mjs');
+  const migrationTunnel = read('scripts/deploy/postgres-tls-tunnel.mjs');
   const cron = read('deploy/scripts/run-monthly-billing.sh');
   const liveHealth = read('app/api/health/live/route.ts');
   const readyHealth = read('app/api/health/ready/route.ts');
@@ -74,7 +75,9 @@ async function main() {
   assert.doesNotMatch(compose, /docker\.sock/, 'container must not mount the Docker socket');
   assert.match(nginx, /proxy_buffering off/, 'streaming AI must not be proxy buffered');
   assert.match(nginx, /client_max_body_size 20m/, 'Nginx upload cap must match application cap');
-  assert.match(migration, /CONFIRM_QIKUKU_MIGRATION/, 'migrations require explicit confirmation');
+  assert.match(migrationEntrypoint, /startPostgresTlsTunnel/, 'migrator must start its local TLS tunnel');
+  assert.match(migrationTunnel, /127\.0\.0\.1/, 'migration TLS tunnel must bind only to loopback');
+  assert.doesNotMatch(compose.match(/migrate:[\s\S]*?(?=\n\S|$)/)?.[0] || '', /env_file:/, 'migrator must not inherit the full app env file');
   assert.match(cron, /--config -/, 'cron must not place its authorization secret in argv');
   assert.doesNotMatch(liveHealth, /getDb\(/, 'liveness must not query the database');
   assert.match(readyHealth, /SELECT 1 AS ok/, 'readiness must verify PostgreSQL');

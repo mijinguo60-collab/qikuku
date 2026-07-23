@@ -44,7 +44,8 @@
     "check:db-tables": "node scripts/check-db-tables.mjs",
     "check:routes": "node scripts/check-routes.mjs",
     "deploy:check-env": "tsx scripts/deploy/check-production-env.ts",
-    "test:production-deploy": "tsx scripts/test-production-deploy-config.ts"
+    "test:production-deploy": "tsx scripts/test-production-deploy-config.ts",
+    "test:migrator-tls-tunnel": "node scripts/deploy/test-postgres-tls-tunnel.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

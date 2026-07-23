@@ -16,6 +16,6 @@ if [ -z "${DATABASE_DIRECT_URL:-}" ] || [ -z "${DATABASE_SSL_CA_PATH:-}" ] || [ 
   exit 2
 fi
 
-# Prisma reads DATABASE_DIRECT_URL through prisma.config.ts. Credentials remain
-# in the process environment and are never placed on a command line or logged.
+# This legacy application-Dockerfile target is not used by production Compose.
+# The independent Dockerfile.migrator has the enforced TLS-tunnel entrypoint.
 exec npx prisma migrate deploy

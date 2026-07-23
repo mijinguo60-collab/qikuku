@@ -9,4 +9,12 @@ if [ "${1:-}" != "--apply" ] || [ "${CONFIRM_QIKUKU_MIGRATION:-}" != "apply-prod
   exit 2
 fi
 
-compose --profile tools run --rm migrate sh scripts/deploy/run-migrations.sh --apply
+# Compose interpolates only the migration variables declared on the migrate
+# service. The app's full production env file is never mounted or passed into
+# that container. This root-owned file is trusted deployment input.
+set -a
+# shellcheck disable=SC1090
+. "$QIKUKU_ENV_FILE"
+set +a
+
+compose --profile tools run --rm migrate --apply
