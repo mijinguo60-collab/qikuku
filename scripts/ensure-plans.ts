@@ -1,16 +1,16 @@
 import { loadEnvConfig } from '@next/env';
 import { randomUUID } from 'crypto';
 import { Client } from 'pg';
+import { pathToFileURL } from 'node:url';
 import { PLAN_CATALOG } from '../lib/billing/pricing';
+import { validateProductionEnvironment } from '../lib/deploy/production-env';
+import { connectionStringWithoutTlsParameters, strictPostgresTlsConfig } from '../lib/strict-pg-tls';
 import {
-  classifyDatabaseTarget,
-  formatMaintenanceTarget,
   isReadableDirectPostgresUrl,
   parseMaintenanceArgs,
-  resolveMaintenanceWriteDecision,
 } from './lib/maintenance-policy';
 
-type ExistingPlan = {
+export type ExistingPlan = {
   id: string;
   code: string;
   name: string;
@@ -24,7 +24,7 @@ type ExistingPlan = {
   enabled: boolean;
 };
 
-type PlanChange = {
+export type PlanChange = {
   kind: 'create' | 'update' | 'unchanged';
   code: string;
   existing?: ExistingPlan;
@@ -50,23 +50,34 @@ function diffFields(existing: ExistingPlan, plan: (typeof PLAN_CATALOG)[number])
   return diffs;
 }
 
-function installSafeWarningHandler() {
-  process.removeAllListeners('warning');
-  process.on('warning', (warning) => {
-    if (warning.message.startsWith("SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca'")) return;
-    console.error(JSON.stringify({ phase: 'runtime_warning', errorCode: 'RUNTIME_WARNING', timedOut: false }));
+export function reconcilePlans(existingPlans: readonly ExistingPlan[]): PlanChange[] {
+  const existingByCode = new Map(existingPlans.map((plan) => [plan.code, plan]));
+  return PLAN_CATALOG.map((plan) => {
+    const existing = existingByCode.get(plan.code);
+    if (!existing) return { kind: 'create', code: plan.code };
+    const diffs = diffFields(existing, plan);
+    return { kind: diffs.length === 0 ? 'unchanged' : 'update', code: plan.code, existing };
   });
+}
+
+export function parseEnsurePlansArguments(args: readonly string[]) {
+  const parsed = parseMaintenanceArgs(args);
+  return {
+    ...parsed,
+    writeAllowed: parsed.mode !== 'apply' || parsed.allowProduction,
+  };
 }
 
 function getDirectDatabaseUrl() {
   loadEnvConfig(process.cwd());
   const databaseUrl = process.env.DATABASE_DIRECT_URL;
   if (!databaseUrl) {
-    console.error('DATABASE_DIRECT_URL 未配置，已停止执行');
+    console.error(JSON.stringify({ phase: 'validate_database_config', errorCode: 'DATABASE_DIRECT_URL_MISSING' }));
     return null;
   }
-  if (!isReadableDirectPostgresUrl(databaseUrl)) {
-    console.error(JSON.stringify({ phase: 'validate_direct_connection', errorCode: 'INVALID_DATABASE_DIRECT_URL', timedOut: false }));
+  const productionEnvironment = validateProductionEnvironment(process.env, { checkCaFile: true });
+  if (!productionEnvironment.valid || !isReadableDirectPostgresUrl(databaseUrl)) {
+    console.error(JSON.stringify({ phase: 'validate_database_config', errorCode: 'INVALID_PRODUCTION_DATABASE_CONFIG' }));
     return null;
   }
   return databaseUrl;
@@ -89,17 +100,16 @@ function safeErrorCode(error: unknown) {
 }
 
 async function main() {
-  installSafeWarningHandler();
-  let parsed: ReturnType<typeof parseMaintenanceArgs>;
+  let parsed: ReturnType<typeof parseEnsurePlansArguments>;
   try {
-    parsed = parseMaintenanceArgs(process.argv.slice(2));
+    parsed = parseEnsurePlansArguments(process.argv.slice(2));
   } catch {
     console.error(JSON.stringify({ phase: 'arguments', errorCode: 'UNSUPPORTED_ARGUMENT', timedOut: false }));
     process.exitCode = 1;
     return;
   }
 
-  const { mode, allowProduction } = parsed;
+  const { mode, writeAllowed } = parsed;
 
   const databaseUrl = getDirectDatabaseUrl();
   if (!databaseUrl) {
@@ -107,53 +117,39 @@ async function main() {
     return;
   }
 
-  const databaseTarget = classifyDatabaseTarget(databaseUrl);
-  const targetInfo = formatMaintenanceTarget(databaseUrl);
-  const writeDecision = resolveMaintenanceWriteDecision(databaseTarget, allowProduction);
-
-  if (mode === 'dry-run') {
-    console.log('ensure-plans dry-run：仅统计，不写数据库');
-  }
-
-  if (mode === 'apply' && !writeDecision.allowed) {
-    console.error(writeDecision.reason === 'production_without_allow'
-      ? 'ensure-plans 检测到生产数据库，必须同时提供 --apply --allow-production'
-      : 'ensure-plans 数据库目标无法识别，拒绝执行写入');
+  if (!writeAllowed) {
+    console.error(JSON.stringify({ phase: 'authorization', errorCode: 'ALLOW_PRODUCTION_REQUIRED', timedOut: false }));
     process.exitCode = 1;
     return;
   }
 
-  console.log(`数据库目标：${databaseTarget}`);
-  console.log(`数据库 host：${targetInfo.host}`);
-  console.log(`数据库名称：${targetInfo.database}`);
-  console.log(`数据库连接模式：${targetInfo.direct ? 'Direct' : 'Unknown'}`);
-  console.log(`连接池地址：${targetInfo.pooled ? '是' : '否'}`);
-
-  const client = new Client({ connectionString: databaseUrl, connectionTimeoutMillis: 15_000, keepAlive: true });
+  const client = new Client({
+    connectionString: connectionStringWithoutTlsParameters(databaseUrl),
+    connectionTimeoutMillis: 15_000,
+    keepAlive: true,
+    ssl: strictPostgresTlsConfig(databaseUrl, process.env.DATABASE_SSL_CA_PATH!),
+  });
   try {
     await client.connect();
     const result = await client.query<ExistingPlan>(`SELECT id,code,name,"monthlyPrice","yearlyPrice","monthlyCredits","maxMembers","maxKnowledgeSpaces","storageLimitBytes","featuresJson",enabled FROM "Plan" ORDER BY code ASC`);
-    const existingByCode = new Map(result.rows.map((plan) => [plan.code, plan]));
-    const changes: PlanChange[] = PLAN_CATALOG.map((plan) => {
-      const existing = existingByCode.get(plan.code);
-      if (!existing) return { kind: 'create', code: plan.code };
-      const diffs = diffFields(existing, plan);
-      return { kind: diffs.length === 0 ? 'unchanged' : 'update', code: plan.code, existing, diffs };
-    });
+    const changes = reconcilePlans(result.rows);
     const counts = {
       create: changes.filter((change) => change.kind === 'create').length,
       update: changes.filter((change) => change.kind === 'update').length,
       unchanged: changes.filter((change) => change.kind === 'unchanged').length,
+      delete: 0,
     };
 
     if (mode === 'dry-run') {
-      console.log(JSON.stringify({ mode, ...counts, applied: false }));
+      console.log(JSON.stringify({ mode, strictTls: true, ...counts, applied: false }));
       for (const change of changes) {
         if (change.kind === 'unchanged') continue;
         console.log(JSON.stringify({
           code: change.code,
           action: change.kind,
-          changedFields: change.kind === 'update' ? (change as any).diffs?.map((d: FieldDiff) => d.field) : ['ALL'],
+          changedFields: change.kind === 'update'
+            ? diffFields(change.existing!, PLAN_CATALOG.find((plan) => plan.code === change.code)!).map((difference) => difference.field)
+            : ['ALL'],
         }));
       }
       return;
@@ -188,7 +184,7 @@ async function main() {
       throw error;
     }
 
-    console.log(JSON.stringify({ mode, ...counts, applied: true }));
+    console.log(JSON.stringify({ mode, strictTls: true, ...counts, applied: true }));
   } catch (error) {
     console.error(JSON.stringify({ phase: 'ensure_plans', errorCode: safeErrorCode(error), timedOut: safeErrorCode(error) === 'ETIMEDOUT' }));
     process.exitCode = 1;
@@ -197,7 +193,9 @@ async function main() {
   }
 }
 
-main().catch(() => {
-  console.error(JSON.stringify({ phase: 'ensure_plans', errorCode: 'ENSURE_PLANS_FAILED', timedOut: false }));
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch(() => {
+    console.error(JSON.stringify({ phase: 'ensure_plans', errorCode: 'ENSURE_PLANS_FAILED', timedOut: false }));
+    process.exitCode = 1;
+  });
+}

@@ -46,6 +46,7 @@
     "check:routes": "node scripts/check-routes.mjs",
     "deploy:check-env": "tsx scripts/deploy/check-production-env.ts",
     "test:production-deploy": "tsx scripts/test-production-deploy-config.ts",
+    "test:ensure-plans": "tsx scripts/test-ensure-plans.ts",
     "test:strict-pg-tls": "tsx scripts/test-strict-pg-tls-config.ts",
     "test:migrator-tls-tunnel": "node scripts/deploy/test-postgres-tls-tunnel.mjs"
   },
