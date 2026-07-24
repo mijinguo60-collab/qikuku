@@ -17,7 +17,7 @@ export default async function SettingsPage() {
       {/* Company Info */}
       <div className="card p-6 mb-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 rounded-xl bg-accent-blue/10 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-md bg-accent-blue/10 flex items-center justify-center">
             <Building2 className="w-5 h-5 text-accent-blue" />
           </div>
           <div>
@@ -27,9 +27,9 @@ export default async function SettingsPage() {
         </div>
         <div className="space-y-4">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+            <div className="w-16 h-16 rounded-md bg-surface-tertiary flex items-center justify-center flex-shrink-0">
               {company.logo ? (
-                <img src={company.logo} alt="Logo" className="w-12 h-12 rounded-xl object-cover" />
+                <img src={company.logo} alt="Logo" className="w-12 h-12 rounded-md object-cover" />
               ) : (
                 <Building2 className="w-8 h-8 text-text-muted" />
               )}
@@ -71,7 +71,7 @@ export default async function SettingsPage() {
       {/* Current Plan */}
       <div className="card p-6 mb-6">
         <h2 className="text-sm font-semibold text-text-primary mb-3">当前套餐</h2>
-        <div className="flex items-center justify-between p-4 rounded-xl bg-surface-secondary">
+        <div className="flex items-center justify-between p-4 rounded-md bg-surface-secondary">
           <div>
             <p className="text-sm font-semibold text-text-primary">免费版</p>
             <p className="text-xs text-text-muted">基础功能，5 个知识空间，10 个文件</p>
@@ -90,7 +90,7 @@ export default async function SettingsPage() {
         ].map((item, i) => (
           <Link key={i} href={item.href}
             className="card-hover p-5 flex items-center gap-4 group">
-            <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center">
+            <div className="w-10 h-10 rounded-md bg-surface-tertiary flex items-center justify-center">
               <item.icon className="w-5 h-5 text-text-secondary" />
             </div>
             <div className="flex-1">

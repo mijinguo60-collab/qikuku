@@ -83,7 +83,7 @@ export default function CreateKnowledgeSpaceButton() {
                 <span className="text-sm font-medium text-text-primary">空间描述</span>
                 <textarea value={description} onChange={(event) => setDescription(event.target.value)} className="input-primary mt-2 min-h-24 resize-y" placeholder="简要说明这个空间适合沉淀哪些资料" maxLength={500} />
               </label>
-              <label className="flex items-center justify-between gap-4 rounded-xl bg-surface-secondary px-4 py-3 cursor-pointer">
+              <label className="flex items-center justify-between gap-4 rounded-md bg-surface-secondary px-4 py-3 cursor-pointer">
                 <span>
                   <span className="block text-sm font-medium text-text-primary">启用 AI 问答</span>
                   <span className="block text-xs text-text-muted mt-0.5">开启后，该空间的资料可用于企业 AI 问答。</span>

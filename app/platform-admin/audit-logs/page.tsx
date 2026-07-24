@@ -246,7 +246,7 @@ function AuditDataBlock({ title, value }: { title: string; value: unknown }) {
   return (
     <div>
       <h4 className="text-sm font-medium text-slate-200">{title}</h4>
-      <pre className="mt-2 max-h-64 overflow-auto select-none rounded-xl border border-white/10 bg-slate-950/70 p-3 text-xs leading-5 text-slate-300">
+      <pre className="mt-2 max-h-64 overflow-auto select-none rounded-md border border-white/10 bg-slate-950/70 p-3 text-xs leading-5 text-slate-300">
         {formatAuditData(value)}
       </pre>
     </div>
@@ -279,7 +279,7 @@ function AuditDetailModal({ item, onClose }: { item: AuditLogItem; onClose: () =
       <section
         aria-labelledby="audit-log-detail-title"
         aria-modal="true"
-        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl"
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-md border border-white/10 bg-slate-900 p-5 shadow-2xl"
         role="dialog"
       >
         <div className="flex items-start justify-between gap-4">
@@ -489,7 +489,7 @@ export default function AuditLogsPage() {
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4">
+      <div className="mt-6 rounded-md border border-white/10 bg-white/10 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <input
             className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-sky-400"
@@ -572,7 +572,7 @@ export default function AuditLogsPage() {
       </div>
 
       {error ? (
-        <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
+        <div className="mt-5 rounded-md border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
           <p>{error}</p>
           <button className="mt-3 underline underline-offset-4" onClick={() => void load()}>
             重新加载
@@ -581,13 +581,13 @@ export default function AuditLogsPage() {
       ) : null}
 
       {!data && loading ? (
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-8 text-sm text-slate-400">
+        <div className="mt-5 rounded-md border border-white/10 bg-white/10 p-8 text-sm text-slate-400">
           正在加载真实审计记录…
         </div>
       ) : null}
 
       {data ? (
-        <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-white/10">
+        <div className="mt-5 overflow-x-auto rounded-md border border-white/10 bg-white/10">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-xs text-slate-400">
             <span>审计记录为只读，不可修改或删除</span>
             {loading ? <span>正在按当前条件刷新…</span> : null}

@@ -62,7 +62,7 @@ export default function ConversationHistory({ mode, activeSessionId, refreshKey,
     <button
       key={session.id}
       onClick={() => void onSelect(session.id)}
-      className={`w-full text-left px-3 py-2.5 rounded-xl transition-colors ${activeSessionId === session.id ? 'bg-surface-tertiary text-text-primary' : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'}`}
+      className={`w-full text-left px-3 py-2.5 rounded-md transition-colors ${activeSessionId === session.id ? 'bg-surface-tertiary text-text-primary' : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'}`}
     >
       <span className="block text-xs font-medium truncate">{session.title || '新对话'}</span>
       <span className="block text-[10px] text-text-muted mt-1">{formatDate(session.updatedAt)} · {Number(session.messageCount || 0)} 条消息</span>

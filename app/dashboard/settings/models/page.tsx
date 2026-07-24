@@ -65,7 +65,7 @@ export default function ModelsStatusPage() {
             return (
               <div key={provider.id} className="card p-5 flex items-center justify-between gap-5">
                 <div className="flex items-center gap-4 min-w-0">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${providerColors[provider.id]}`}><Icon className="w-5 h-5" /></div>
+                  <div className={`w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 ${providerColors[provider.id]}`}><Icon className="w-5 h-5" /></div>
                   <div><h2 className="text-sm font-semibold text-text-primary">{provider.title}</h2><p className="text-xs text-text-muted mt-1">{provider.description}</p></div>
                 </div>
                 <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full flex-shrink-0 ${provider.configured ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>

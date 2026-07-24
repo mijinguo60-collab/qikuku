@@ -266,7 +266,7 @@ function errorMessage(error: ErrorState) {
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+    <div className="rounded-md border border-white/10 bg-slate-950/30 p-3">
       <p className="text-xs text-slate-500">{label}</p>
       <p className="mt-1 text-base font-medium text-slate-100">{value}</p>
     </div>
@@ -292,7 +292,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-5 shadow-sm shadow-slate-950/20">
+    <section className="mt-5 rounded-md border border-white/10 bg-white/10 p-5 shadow-sm shadow-slate-950/20">
       <div className="mb-4">
         <h3 className="font-semibold text-slate-100">{title}</h3>
         {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
@@ -544,7 +544,7 @@ export default function CompanyDetailPage() {
   if (error && !visibleData) {
     const message = errorMessage(error);
     return (
-      <section className="max-w-2xl rounded-2xl border border-white/10 bg-white/10 p-6">
+      <section className="max-w-2xl rounded-md border border-white/10 bg-white/10 p-6">
         <p className="text-xs font-medium text-sky-200">平台后台 · 只读</p>
         <h2 className="mt-2 text-2xl font-bold text-slate-100">{message}</h2>
         <p className="mt-3 text-sm text-slate-400">
@@ -573,7 +573,7 @@ export default function CompanyDetailPage() {
 
   if (!visibleData) {
     return (
-      <section className="rounded-2xl border border-white/10 bg-white/10 p-8 text-sm text-slate-400">
+      <section className="rounded-md border border-white/10 bg-white/10 p-8 text-sm text-slate-400">
         正在加载真实企业详情…
       </section>
     );
@@ -621,7 +621,7 @@ export default function CompanyDetailPage() {
       </div>
 
       {error ? (
-        <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
+        <div className="mt-5 rounded-md border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
           <p>{errorMessage(error)}</p>
           <button className="mt-3 underline underline-offset-4" onClick={() => void load()}>
             重新加载
@@ -630,7 +630,7 @@ export default function CompanyDetailPage() {
       ) : null}
 
       {operationSuccess ? (
-        <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
+        <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
           {operationSuccess}
         </div>
       ) : null}
@@ -650,7 +650,7 @@ export default function CompanyDetailPage() {
         {owners.length ? (
           <div className="grid gap-3 lg:grid-cols-2">
             {owners.map((owner) => (
-              <article className="rounded-xl border border-white/10 bg-slate-950/30 p-4" key={owner.membershipId}>
+              <article className="rounded-md border border-white/10 bg-slate-950/30 p-4" key={owner.membershipId}>
                 <p className="font-medium text-slate-100">{owner.name || '未设置姓名'}</p>
                 <p className="mt-1 break-all text-xs text-slate-500">用户 ID：{owner.userId}</p>
                 <dl className="mt-3 space-y-2 text-sm text-slate-300">
@@ -675,7 +675,7 @@ export default function CompanyDetailPage() {
           <MetricCard label="有效 Owner 数" value={formatNumber(membershipStats.ownerCount)} />
         </div>
         {memberships.length ? (
-          <div className="mt-5 overflow-x-auto rounded-xl border border-white/10">
+          <div className="mt-5 overflow-x-auto rounded-md border border-white/10">
             <table className="w-full min-w-[1120px] text-left text-sm">
               <thead className="bg-slate-950/40 text-slate-400">
                 <tr>
@@ -778,7 +778,7 @@ export default function CompanyDetailPage() {
         title="安全操作"
         description="管理该企业当前登录会话。该操作不会禁用用户、企业或成员关系。"
       >
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-amber-300/20 bg-amber-300/5 p-4">
           <div className="max-w-3xl">
             <p className="text-sm font-medium text-slate-100">强制退出全部企业会话</p>
             <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -804,7 +804,7 @@ export default function CompanyDetailPage() {
           role="dialog"
         >
           <div
-            className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl"
+            className="max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-md border border-white/10 bg-slate-900 p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -822,7 +822,7 @@ export default function CompanyDetailPage() {
               </button>
             </div>
 
-            <dl className="mt-5 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
+            <dl className="mt-5 grid gap-3 rounded-md border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-slate-500">企业名称</dt>
                 <dd className="mt-1 break-all text-slate-100">{revokeOperation.companyName}</dd>
@@ -860,7 +860,7 @@ export default function CompanyDetailPage() {
               操作原因
             </label>
             <textarea
-              className="mt-2 min-h-24 w-full resize-y rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-300 disabled:opacity-60"
+              className="mt-2 min-h-24 w-full resize-y rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-300 disabled:opacity-60"
               disabled={submitting}
               id="company-session-revoke-reason"
               maxLength={200}
@@ -879,7 +879,7 @@ export default function CompanyDetailPage() {
               请输入确认文字：<span className="select-all text-amber-100">{REVOKE_CONFIRMATION_TEXT}</span>
             </label>
             <input
-              className="mt-2 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-300 disabled:opacity-60"
+              className="mt-2 w-full rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-amber-300 disabled:opacity-60"
               disabled={submitting}
               id="company-session-revoke-confirmation"
               onChange={(event) => setConfirmationText(event.target.value)}

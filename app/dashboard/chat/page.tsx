@@ -251,12 +251,12 @@ export default function ChatPage() {
     } finally { if (abortRef.current === controller) abortRef.current = null; setLoading(false); }
   }
 
-  return <div className="flex h-[calc(100vh-0px)] min-h-[600px] bg-surface-primary">
+  return <div className="flex h-[calc(100vh-0px)] min-h-[600px] bg-surface-canvas">
     <ConversationHistory mode="unified" activeSessionId={sessionId} refreshKey={historyRevision} onSelect={loadSession} onCreate={createSession} />
     <section className="min-w-0 flex-1 flex flex-col">
-      <header className="relative border-b border-border-light bg-white/70 px-4 md:px-6 py-3 flex flex-wrap items-center gap-2">
+      <header className="relative border-b border-border-light bg-white px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2">
         <div className="relative">
-          <button type="button" aria-expanded={modelOpen} onClick={() => setModelOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-xl border border-border-light bg-white px-3 py-2 text-xs font-medium shadow-sm transition hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-accent-blue/30">
+          <button type="button" aria-expanded={modelOpen} onClick={() => setModelOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-md border border-border-light bg-white px-3 py-2 text-xs font-medium transition hover:bg-surface-secondary focus:outline-none focus:ring-2 focus:ring-accent-blue/30">
             {selectedModel ? <span className="flex h-5 w-5 items-center justify-center rounded-md bg-accent-blue/10 text-accent-blue"><ProviderIcon provider={selectedModel.iconKey} /></span> : bootLoading ? <Loader2 className="w-4 h-4 text-accent-blue animate-spin" /> : <Bot className="w-4 h-4 text-accent-blue" />}
             {selectedModel?.displayName || (bootLoading ? '正在加载模型…' : '暂无可用模型')}<ChevronDown className={`w-3.5 h-3.5 transition-transform ${modelOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -290,9 +290,9 @@ export default function ChatPage() {
         </section>
       </div>}
 
-      <main className="flex-1 overflow-y-auto"><div className="mx-auto max-w-3xl px-4 md:px-8 py-6 space-y-5">
+      <main className="flex-1 overflow-y-auto"><div className="mx-auto max-w-2xl px-4 md:px-8 py-5 space-y-4">
         {messages.map((message) => <article key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
-          {message.role === 'assistant' && <div className="mt-1 w-8 h-8 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0"><Brain className="w-4 h-4 text-accent-blue" /></div>}
+          {message.role === 'assistant' && <div className="mt-1 w-7 h-7 rounded-md bg-accent-blue/10 flex items-center justify-center shrink-0"><Brain className="w-4 h-4 text-accent-blue" /></div>}
           <div className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-text-primary text-white px-4 py-3' : 'bg-surface-secondary rounded-2xl px-4 py-3'}`}>
             <p className="whitespace-pre-wrap text-sm leading-7">{message.content}</p>
             {message.role === 'assistant' && message.id === 'welcome' && <div className="grid gap-2 mt-4 md:grid-cols-3">{prompts.map((prompt) => <button key={prompt} onClick={() => void send(prompt)} className="rounded-xl bg-surface-secondary p-3 text-left text-xs text-text-secondary hover:bg-surface-hover">{prompt}</button>)}</div>}
@@ -304,11 +304,11 @@ export default function ChatPage() {
         <div ref={endRef} />
       </div></main>
 
-      <footer className="border-t border-border-light bg-white p-4 md:p-6"><div className="mx-auto max-w-4xl rounded-2xl border border-border-light bg-white p-3">
+      <footer className="border-t border-border-light bg-white px-4 py-3"><div className="mx-auto max-w-2xl rounded-lg border border-border-light bg-white p-3">
         <div className="flex gap-2 mb-2 text-[11px] text-text-muted"><span>{selectedModel?.estimatedCredits || 0} 积分/次（预计）</span><span>·</span><span>{currentScope}</span></div>
         <div className="flex items-end gap-2"><div className="flex gap-1"><button disabled={!fileAttachmentReady || !selectedModel?.supportsParsedDocument} title={!selectedModel?.supportsParsedDocument ? '当前模型不支持解析文档上下文' : '会话附件存储尚未配置；请先通过文件中心入库'} className="p-2 text-text-muted disabled:opacity-35"><FileUp className="w-4 h-4" /></button><button disabled={!selectedModel?.supportsVision || !fileAttachmentReady} title={!selectedModel?.supportsVision ? '当前模型不支持图片识别' : '会话图片附件存储尚未配置'} className="p-2 text-text-muted disabled:opacity-35"><ImagePlus className="w-4 h-4" /></button><button disabled={!selectedModel?.supportsWebSearch || !webSearchReady} title={!selectedModel?.supportsWebSearch ? '当前模型不支持联网搜索' : '平台尚未配置真实联网搜索服务'} className="p-2 text-text-muted disabled:opacity-35"><Globe2 className="w-4 h-4" /></button></div>
           <textarea value={input} onChange={(event) => setInput(event.target.value.slice(0, 12_000))} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(); } }} placeholder="输入问题，企业知识库将优先作为回答依据…" rows={2} className="min-h-[44px] flex-1 resize-none bg-transparent text-sm outline-none" />
-          <button onClick={() => void send()} disabled={loading || !input.trim() || !selectedModel} className="w-10 h-10 rounded-xl bg-text-primary text-white flex items-center justify-center disabled:opacity-40"><Send className="w-4 h-4" /></button>
+          <button onClick={() => void send()} disabled={loading || !input.trim() || !selectedModel} className="w-9 h-9 rounded-md bg-text-primary text-white flex items-center justify-center disabled:opacity-40"><Send className="w-4 h-4" /></button>
         </div><p className="mt-2 text-[10px] text-text-muted">企业资料优先；资料不足时会明确提示。联网搜索当前未配置。</p>{creditNotice && <p className="mt-1 text-[11px] text-text-secondary">{creditNotice}</p>}{error && <p className="mt-1 text-[11px] text-danger">{error}</p>}
       </div></footer>
     </section>

@@ -9,6 +9,8 @@
     @apply bg-surface-canvas text-text-primary antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   ::selection {
     @apply bg-accent-blue/20;
@@ -16,32 +18,49 @@
 }
 
 @layer components {
+  /* Primary button - black, Claude-style */
   .btn-primary {
-    @apply bg-text-primary text-white px-5 py-2.5 rounded-xl font-medium text-sm
+    @apply bg-text-primary text-white px-5 py-2 rounded-md font-medium text-sm
            hover:bg-text-primary/90 transition-colors duration-150
-           active:scale-[0.98];
+           active:scale-[0.98] disabled:opacity-50;
   }
+  /* Secondary button */
   .btn-secondary {
-    @apply bg-white text-text-primary px-5 py-2.5 rounded-xl font-medium text-sm
+    @apply bg-white text-text-primary px-5 py-2 rounded-md font-medium text-sm
            border border-border-light
            hover:bg-surface-hover transition-colors duration-150
-           active:scale-[0.98];
+           active:scale-[0.98] disabled:opacity-50;
   }
+  /* Ghost button */
   .btn-ghost {
-    @apply text-text-secondary px-4 py-2 rounded-xl font-medium text-sm
-           hover:bg-surface-hover transition-colors duration-150;
+    @apply text-text-secondary px-4 py-2 rounded-md font-medium text-sm
+           hover:bg-surface-hover hover:text-text-primary transition-colors duration-150;
   }
+  /* Input */
   .input-primary {
-    @apply w-full px-4 py-3 rounded-2xl border border-border-medium bg-white
+    @apply w-full px-3 py-2 rounded-md border border-border-light bg-white
            text-sm text-text-primary placeholder:text-text-muted
-           focus:outline-none focus:border-accent-blue/40 focus-visible:ring-2 focus-visible:ring-accent-blue/30
+           focus:outline-none focus:border-text-primary/30 focus-visible:ring-1 focus-visible:ring-text-primary/20
            transition-colors duration-150;
   }
+  /* Card */
   .card {
-    @apply bg-white rounded-2xl border border-border-light shadow-light;
+    @apply bg-white rounded-md border border-border-light shadow-card;
   }
   .card-hover {
     @apply card hover:shadow-hover hover:border-border-medium transition-[box-shadow,border-color] duration-200;
+  }
+  /* Page title */
+  .page-title {
+    @apply text-lg font-semibold text-text-primary tracking-tight;
+  }
+  .page-subtitle {
+    @apply text-sm text-text-secondary;
+  }
+  /* Table-like list row */
+  .list-row {
+    @apply flex items-center px-4 py-3 border-b border-border-light last:border-b-0
+           hover:bg-surface-hover transition-colors;
   }
 }
 
@@ -76,7 +95,7 @@
   40% { transform: scale(1); }
 }
 
-/* Reduced motion — Apple Design §14 */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up {

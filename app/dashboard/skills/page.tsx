@@ -43,7 +43,7 @@ export default async function SkillsPage() {
             <div key={s.id} className="card p-6 hover:shadow-hover transition-shadow">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-md bg-surface-tertiary flex items-center justify-center">
                     <Lightbulb className="w-5 h-5 text-accent-purple" />
                   </div>
                   <div>

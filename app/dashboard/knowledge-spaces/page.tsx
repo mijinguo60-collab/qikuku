@@ -29,7 +29,7 @@ export default async function KnowledgeSpacesPage() {
         {spaces.map((space: SpaceRow) => (
           <Link key={space.id} href={`/dashboard/knowledge-spaces/${space.id}`} className="card-hover p-5 group">
             <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center">
+              <div className="w-10 h-10 rounded-md bg-surface-tertiary flex items-center justify-center">
                 <FolderOpen className="w-5 h-5 text-text-secondary" />
               </div>
               <span className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all" aria-hidden="true">

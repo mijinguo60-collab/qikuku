@@ -65,36 +65,36 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
     }
   }
 
- return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} h-screen sticky top-0 bg-white/60 backdrop-blur-lg border-r border-black/[0.06] flex flex-col transition-[width] duration-200 flex-shrink-0 overflow-hidden`}>
+  return (
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} h-screen sticky top-0 bg-surface-secondary border-r border-border-light flex flex-col transition-[width] duration-200 flex-shrink-0 overflow-hidden`}>
       {/* Logo */}
-      <Link href="/dashboard" className="flex items-center gap-2.5 px-4 h-14 border-b border-border-light flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-text-primary flex items-center justify-center flex-shrink-0">
-          <Brain className="w-4 h-4 text-white" />
+      <Link href="/dashboard" className="flex items-center gap-2.5 px-4 h-12 flex-shrink-0">
+        <div className="w-7 h-7 rounded-md bg-text-primary flex items-center justify-center flex-shrink-0">
+          <Brain className="w-3.5 h-3.5 text-white" />
         </div>
-        {!collapsed && <span className="text-sm font-bold text-text-primary whitespace-nowrap">企库库</span>}
+        {!collapsed && <span className="text-sm font-semibold text-text-primary tracking-tight whitespace-nowrap">企库库</span>}
       </Link>
 
       {/* Menu */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-3">
         {menuGroups.filter(g => isSidebarGroupVisible(effectiveRole, g.label)).map((group, gi) => (
           <div key={gi}>
-            {!collapsed && <p className="px-3 mb-1.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{group.label}</p>}
-            <div className="space-y-0.5">
+            {!collapsed && <p className="px-2.5 mb-1 text-[11px] font-medium text-text-muted">{group.label}</p>}
+            <div className="space-y-px">
               {group.items.map(item => {
                 const isActive = pendingHref === item.href || pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                 const isPending = pendingHref === item.href && pathname !== item.href;
                 return (
                   <Link key={item.href} href={item.href} prefetch onClick={() => setPendingHref(item.href)}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
+                    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
                       isActive
-    ? 'bg-white text-text-primary font-medium shadow-light ring-1 ring-black/[0.06]'
-                        : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
+                        ? 'bg-white text-text-primary font-medium shadow-subtle border border-border-light'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-white/60'
                     }`}
                     title={collapsed ? item.label : undefined}
                     aria-busy={isPending}
                   >
-                    {isPending ? <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin" /> : <item.icon className="w-4 h-4 flex-shrink-0" />}
+                    {isPending ? <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" /> : <item.icon className="w-3.5 h-3.5 flex-shrink-0" />}
                     {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
                   </Link>
                 );
@@ -105,17 +105,17 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-border-light p-2 space-y-1">
-        <Link href="/dashboard/billing" className={`block rounded-xl border px-3 py-3 transition-colors ${creditBalance < 1000 && !creditsLoading ? 'border-warning/30 bg-warning/10 text-warning' : 'border-border-light bg-white text-text-primary hover:bg-surface-hover'}`} title={collapsed ? `AI 算力积分 ${creditsLoading ? '…' : creditBalance.toLocaleString()}` : undefined}>
-          {collapsed ? <Wallet className="w-5 h-5 mx-auto" /> : <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-lg bg-accent-blue/10 flex items-center justify-center"><Wallet className="w-4 h-4 text-accent-blue" /></div><div className="min-w-0"><p className="text-[10px] text-text-muted">AI 算力积分</p><p className="text-lg leading-5 font-bold">{creditsLoading ? '—' : creditBalance.toLocaleString()}</p><p className="text-[10px] text-text-muted">点击查看套餐与充值</p></div></div>}
+      <div className="border-t border-border-light p-2 space-y-1.5">
+        <Link href="/dashboard/billing" className={`block rounded-md border px-2.5 py-2.5 transition-colors ${creditBalance < 1000 && !creditsLoading ? 'border-warning/30 bg-warning/5 text-warning' : 'border-border-light bg-white hover:bg-surface-hover'}`} title={collapsed ? `AI 算力积分 ${creditsLoading ? '…' : creditBalance.toLocaleString()}` : undefined}>
+          {collapsed ? <Wallet className="w-4 h-4 mx-auto" /> : <div className="flex items-center gap-2"><div className="w-7 h-7 rounded-md bg-accent-blue/10 flex items-center justify-center flex-shrink-0"><Wallet className="w-3.5 h-3.5 text-accent-blue" /></div><div className="min-w-0"><p className="text-[11px] text-text-muted leading-tight">AI 算力积分</p><p className="text-base font-semibold leading-tight">{creditsLoading ? '—' : creditBalance.toLocaleString()}</p></div></div>}
         </Link>
-        <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all w-full">
-          <ChevronLeft className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
-          {!collapsed && <span className="whitespace-nowrap">收起菜单</span>}
+        <button onClick={() => setCollapsed(!collapsed)} className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-text-muted hover:text-text-primary hover:bg-white/60 transition-colors w-full">
+          <ChevronLeft className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          {!collapsed && <span className="whitespace-nowrap">收起</span>}
         </button>
         {logoutError && !collapsed && <p className="px-3 text-xs text-danger" role="alert">{logoutError}</p>}
-        <button onClick={handleLogout} disabled={loggingOut} className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-text-muted hover:text-danger hover:bg-danger/5 transition-all w-full text-left disabled:opacity-60">
-          <LogOut className="w-4 h-4 flex-shrink-0" />
+        <button onClick={handleLogout} disabled={loggingOut} className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-[13px] text-text-muted hover:text-danger hover:bg-danger/5 transition-colors w-full text-left disabled:opacity-60">
+          <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
           {!collapsed && <span className="whitespace-nowrap">{loggingOut ? '退出中…' : '退出登录'}</span>}
         </button>
       </div>

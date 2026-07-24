@@ -326,7 +326,7 @@ function StatusTag({ enabled }: { enabled: boolean | null }) {
 }
 
 function MetricCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return <div className="rounded-xl border border-white/10 bg-slate-950/30 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-xl font-semibold text-slate-100">{value}</p>{detail ? <p className="mt-1 text-xs leading-5 text-slate-400">{detail}</p> : null}</div>;
+  return <div className="rounded-md border border-white/10 bg-slate-950/30 p-3"><p className="text-xs text-slate-500">{label}</p><p className="mt-1 text-xl font-semibold text-slate-100">{value}</p>{detail ? <p className="mt-1 text-xs leading-5 text-slate-400">{detail}</p> : null}</div>;
 }
 
 function PlanPanel({ urlKey }: { urlKey: string }) {
@@ -424,7 +424,7 @@ function PlanPanel({ urlKey }: { urlKey: string }) {
       <MetricCard label="套餐关联企业数" value={formatNumber(companyAssociationTotal, '—')} detail="按套餐分别去重后合计，非全平台唯一企业数。" />
       <MetricCard label="当前订阅状态" value={existingStatuses.length ? existingStatuses.map(getSubscriptionLabel).join('、') : '暂无订阅状态'} detail="仅显示数据库当前实际存在的状态。" />
     </div>
-    <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4">
+    <div className="mt-6 rounded-md border border-white/10 bg-white/10 p-4">
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <input className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-400" maxLength={100} onChange={(event) => setQuery(event.target.value.slice(0, 100))} placeholder="搜索套餐 ID、代码或名称" value={query} />
         <select className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100" onChange={(event) => update('sortBy', getPlanSortBy(event.target.value))} value={filters.sortBy}>
@@ -435,9 +435,9 @@ function PlanPanel({ urlKey }: { urlKey: string }) {
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">套餐总数：{data?.total ?? 0}</p><div className="flex gap-2"><button className="rounded-lg bg-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/15 disabled:opacity-50" disabled={loading} onClick={() => void load()} type="button">{loading && data ? '正在刷新…' : '刷新'}</button><button className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10" onClick={() => { setQuery(''); commit(DEFAULT_PLAN_FILTERS); }} type="button">重置筛选</button></div></div>
     </div>
-    {error ? <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100"><p>{error}</p><button className="mt-3 underline underline-offset-4" onClick={() => void load()} type="button">重新加载</button></div> : null}
-    {!data && loading ? <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-8 text-sm text-slate-400">正在加载套餐与订阅数据…</div> : null}
-    {data ? <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-white/10">
+    {error ? <div className="mt-5 rounded-md border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100"><p>{error}</p><button className="mt-3 underline underline-offset-4" onClick={() => void load()} type="button">重新加载</button></div> : null}
+    {!data && loading ? <div className="mt-5 rounded-md border border-white/10 bg-white/10 p-8 text-sm text-slate-400">正在加载套餐与订阅数据…</div> : null}
+    {data ? <div className="mt-5 overflow-x-auto rounded-md border border-white/10 bg-white/10">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs text-slate-400"><span>套餐与订阅信息仅供查看，不提供创建、修改、删除或人工续费操作。</span>{loading ? <span>正在按当前条件刷新…</span> : null}</div>
       <table className="w-full min-w-[1740px] text-left text-sm"><thead className="bg-slate-950/30 text-slate-400"><tr>{['套餐', '价格', '月度积分', '成员上限', '知识空间上限', '存储空间', '状态', '订阅情况', '状态分布', '时间'].map((title) => <th className="p-3 font-medium" key={title}>{title}</th>)}</tr></thead>
         <tbody>{data.items.map((plan) => <tr className="border-t border-white/10 align-top" key={plan.id}>
@@ -534,7 +534,7 @@ function SubscriptionPanel({ urlKey }: { urlKey: string }) {
       <MetricCard label="当前页自动续费" value={currentPageAutoRenew === null ? '暂无可靠数据' : formatNumber(currentPageAutoRenew)} detail="现有只读订阅 API 未返回该字段时不推断。" />
       <MetricCard label="当前页关联异常" value={formatNumber(integrityWarnings, '—')} detail="仅统计当前已加载页。" />
     </div>
-    <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4">
+    <div className="mt-6 rounded-md border border-white/10 bg-white/10 p-4">
       <p className="mb-3 text-xs text-slate-400">可搜索订阅 ID、企业 ID/名称、套餐 ID/code/名称</p>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <input className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-400" maxLength={100} onChange={(event) => setQuery(event.target.value.slice(0, 100))} placeholder="搜索订阅、企业或套餐" value={query} />
@@ -548,9 +548,9 @@ function SubscriptionPanel({ urlKey }: { urlKey: string }) {
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-slate-400">订阅总数：{data?.total ?? 0}</p><div className="flex gap-2"><button className="rounded-lg bg-white/10 px-3 py-2 text-sm text-slate-200 transition hover:bg-white/15 disabled:opacity-50" disabled={loading} onClick={() => void load()} type="button">{loading && data ? '正在刷新…' : '刷新'}</button><button className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:bg-white/10" onClick={() => { setQuery(''); commit(DEFAULT_SUBSCRIPTION_FILTERS); }} type="button">重置筛选</button></div></div>
     </div>
-    {error ? <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100"><p>{error}</p><button className="mt-3 underline underline-offset-4" onClick={() => void load()} type="button">重新加载</button></div> : null}
-    {!data && loading ? <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-8 text-sm text-slate-400">正在加载企业订阅数据…</div> : null}
-    {data ? <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-white/10">
+    {error ? <div className="mt-5 rounded-md border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100"><p>{error}</p><button className="mt-3 underline underline-offset-4" onClick={() => void load()} type="button">重新加载</button></div> : null}
+    {!data && loading ? <div className="mt-5 rounded-md border border-white/10 bg-white/10 p-8 text-sm text-slate-400">正在加载企业订阅数据…</div> : null}
+    {data ? <div className="mt-5 overflow-x-auto rounded-md border border-white/10 bg-white/10">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3 text-xs text-slate-400"><span>企业订阅信息仅供查看，不提供创建、续期、取消或自动补建订阅操作。</span>{loading ? <span>正在按当前条件刷新…</span> : null}</div>
       <table className="w-full min-w-[1900px] text-left text-sm"><thead className="bg-slate-950/30 text-slate-400"><tr>{['订阅', '企业', '套餐', '价格与额度', '订阅状态', '计费周期', '开始时间', '到期时间', '自动续费', '数据完整性'].map((title) => <th className="p-3 font-medium" key={title}>{title}</th>)}</tr></thead>
         <tbody>{data.items.map((subscription) => { const expiryHint = getExpiryHint(subscription.expiresAt); return <tr className="border-t border-white/10 align-top" key={subscription.subscriptionId}>
@@ -603,7 +603,7 @@ export default function PlatformBillingPage() {
       <h2 className="mt-1 text-2xl font-bold text-slate-100">套餐与订阅</h2>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">查看企库库平台的套餐配置、价格、资源额度及企业订阅使用情况。</p>
     </div>
-    <div className="mt-5 inline-flex rounded-xl border border-white/10 bg-slate-950/30 p-1">
+    <div className="mt-5 inline-flex rounded-md border border-white/10 bg-slate-950/30 p-1">
       <button className={`rounded-lg px-4 py-2 text-sm transition ${view === 'plans' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => switchView('plans')} type="button">套餐配置</button>
       <button className={`rounded-lg px-4 py-2 text-sm transition ${view === 'subscriptions' ? 'bg-white/15 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`} onClick={() => switchView('subscriptions')} type="button">企业订阅</button>
     </div>

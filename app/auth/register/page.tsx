@@ -126,7 +126,7 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-blue/10 text-accent-blue"><LockKeyhole className="h-5 w-5" /></div>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-accent-blue/10 text-accent-blue"><LockKeyhole className="h-5 w-5" /></div>
         <h1 className="text-2xl font-bold text-text-primary">注册企业</h1>
         <p className="mt-2 text-sm text-text-secondary">完成注册后，使用手机号和密码登录企业工作台。</p>
       </div>
@@ -171,7 +171,7 @@ export default function RegisterPage() {
         <label className="flex items-start gap-2 text-xs text-text-secondary"><input type="checkbox" className="mt-0.5" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />我已阅读并同意 <Link href="/terms" className="text-accent-blue">用户协议</Link> 与 <Link href="/privacy" className="text-accent-blue">隐私政策</Link></label>
         {message && <p className="text-sm text-success" role="status">{message}</p>}
         {error && <p className="text-sm text-danger" role="alert">{error}</p>}
-        <button disabled={submitting} className="btn-primary w-full rounded-xl py-3 disabled:opacity-60">{submitting ? '注册中…' : '注册并进入工作台'}</button>
+        <button disabled={submitting} className="btn-primary w-full rounded-md py-2.5 disabled:opacity-60">{submitting ? '注册中…' : '注册并进入工作台'}</button>
       </form>
       <p className="mt-6 text-center text-sm text-text-secondary">已有账号？ <Link className="text-accent-blue" href="/auth/login">去登录</Link></p>
     </div>

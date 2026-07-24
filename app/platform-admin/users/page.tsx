@@ -151,7 +151,7 @@ export default function UsersPage() {
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-white/10 p-4">
+      <div className="mt-6 rounded-md bg-white/10 p-4">
         <div className="flex flex-wrap gap-3">
           <input
             value={query}
@@ -178,14 +178,14 @@ export default function UsersPage() {
       </div>
 
       {error ? (
-        <div className="mt-5 rounded-xl bg-red-500/10 p-4 text-red-200">
+        <div className="mt-5 rounded-md bg-red-500/10 p-4 text-red-200">
           {error}
           <button onClick={() => void load()} className="ml-3 underline">
             重新加载
           </button>
         </div>
       ) : (
-        <div className="mt-5 overflow-x-auto rounded-2xl bg-white/10">
+        <div className="mt-5 overflow-x-auto rounded-md bg-white/10">
           <table className="w-full min-w-[1200px] text-left text-sm">
             <thead className="text-slate-400">
               <tr>

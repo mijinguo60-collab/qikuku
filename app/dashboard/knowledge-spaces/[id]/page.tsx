@@ -72,7 +72,7 @@ export default async function KnowledgeSpaceDetailPage({ params }: { params: { i
 
       <div className="card p-6 mb-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+          <div className="w-12 h-12 rounded-md bg-surface-tertiary flex items-center justify-center flex-shrink-0">
             <FolderOpen className="w-6 h-6 text-text-secondary" />
           </div>
           <div className="min-w-0 flex-1">

@@ -50,7 +50,7 @@ export default async function SecurityPage() {
           { icon: FileText, title: 'NDA 保密协议', desc: '支持签署 NDA 保密协议，保障数据安全', status: '可提供', color: 'text-accent-purple' },
         ].map((item, i) => (
           <div key={i} className="card p-5 flex gap-4">
-            <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-md bg-surface-tertiary flex items-center justify-center flex-shrink-0">
               <item.icon className="w-5 h-5 text-text-secondary" />
             </div>
             <div>
@@ -74,7 +74,7 @@ export default async function SecurityPage() {
             { level: '机密', desc: '仅限管理层', color: 'bg-warning/10 text-warning border-warning/20' },
             { level: '高度机密', desc: '仅超级管理员', color: 'bg-danger/10 text-danger border-danger/20' },
           ].map((s, i) => (
-            <div key={i} className={`p-3 rounded-xl border ${s.color} text-center`}>
+            <div key={i} className={`p-3 rounded-md border ${s.color} text-center`}>
               <p className="text-xs font-semibold mb-0.5">{s.level}</p>
               <p className="text-[10px] opacity-70">{s.desc}</p>
             </div>

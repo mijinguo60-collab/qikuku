@@ -638,7 +638,7 @@ export default function MembershipsPage() {
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-white/10 bg-white/10 p-4">
+      <div className="mt-6 rounded-md border border-white/10 bg-white/10 p-4">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <input
             className="rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none placeholder:text-slate-500 focus:border-sky-400"
@@ -724,7 +724,7 @@ export default function MembershipsPage() {
       </div>
 
       {error ? (
-        <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
+        <div className="mt-5 rounded-md border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
           <p>{error}</p>
           <button className="mt-3 underline underline-offset-4" onClick={() => void load()}>
             重新加载
@@ -733,19 +733,19 @@ export default function MembershipsPage() {
       ) : null}
 
       {successMessage ? (
-        <div className="mt-5 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
+        <div className="mt-5 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-4 text-sm text-emerald-100">
           {successMessage}
         </div>
       ) : null}
 
       {!data && loading ? (
-        <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-8 text-sm text-slate-400">
+        <div className="mt-5 rounded-md border border-white/10 bg-white/10 p-8 text-sm text-slate-400">
           正在加载真实企业成员数据…
         </div>
       ) : null}
 
       {data ? (
-        <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10 bg-white/10">
+        <div className="mt-5 overflow-x-auto rounded-md border border-white/10 bg-white/10">
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-xs text-slate-400">
             <span>可调整企业角色与成员状态；不支持删除成员关系或修改用户账号状态</span>
             {loading ? <span>正在按当前条件刷新…</span> : null}
@@ -918,7 +918,7 @@ export default function MembershipsPage() {
           role="dialog"
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl"
+            className="w-full max-w-lg rounded-md border border-white/10 bg-slate-900 p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -946,7 +946,7 @@ export default function MembershipsPage() {
                 : '系统会保护企业最后一个有效 Owner。如果该成员是最后一个有效 Owner，操作将被拒绝。'}
             </p>
 
-            <dl className="mt-5 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
+            <dl className="mt-5 grid gap-3 rounded-md border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-slate-500">用户</dt>
                 <dd className="mt-1 break-all text-slate-100">{roleOperation.membership.user.name || '未设置姓名'}</dd>
@@ -971,7 +971,7 @@ export default function MembershipsPage() {
               操作原因
             </label>
             <textarea
-              className="mt-2 min-h-24 w-full resize-y rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-400 disabled:opacity-60"
+              className="mt-2 min-h-24 w-full resize-y rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-400 disabled:opacity-60"
               disabled={submitting}
               id="membership-role-reason"
               maxLength={200}
@@ -1029,7 +1029,7 @@ export default function MembershipsPage() {
           role="dialog"
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl"
+            className="w-full max-w-lg rounded-md border border-white/10 bg-slate-900 p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4">
@@ -1062,7 +1062,7 @@ export default function MembershipsPage() {
               </p>
             ) : null}
 
-            <dl className="mt-5 grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
+            <dl className="mt-5 grid gap-3 rounded-md border border-white/10 bg-white/5 p-4 text-sm sm:grid-cols-2">
               <div>
                 <dt className="text-xs text-slate-500">用户</dt>
                 <dd className="mt-1 break-all text-slate-100">{statusOperation.membership.user.name || '未设置姓名'}</dd>
@@ -1091,7 +1091,7 @@ export default function MembershipsPage() {
               操作原因
             </label>
             <textarea
-              className="mt-2 min-h-24 w-full resize-y rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-400 disabled:opacity-60"
+              className="mt-2 min-h-24 w-full resize-y rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-400 disabled:opacity-60"
               disabled={submitting}
               id="membership-status-reason"
               maxLength={200}

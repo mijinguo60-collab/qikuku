@@ -108,7 +108,7 @@ export default function FileUploadButton({ spaces }: { spaces: KnowledgeSpaceOpt
             </div>
 
             {spaces.length === 0 ? (
-              <div className="rounded-xl bg-surface-secondary p-5 text-center">
+              <div className="rounded-md bg-surface-secondary p-5 text-center">
                 <p className="text-sm font-medium text-text-primary">请先创建知识空间</p>
                 <p className="text-xs text-text-muted mt-2">上传文件前，需要先确定资料归属的知识空间。</p>
                 <Link href="/dashboard/knowledge-spaces" className="btn-primary text-sm inline-flex mt-4">前往创建知识空间</Link>
@@ -125,7 +125,7 @@ export default function FileUploadButton({ spaces }: { spaces: KnowledgeSpaceOpt
                   <div>
                     <span className="block text-sm font-medium text-text-primary">选择文件</span>
                     <input ref={fileInputRef} type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileChange} className="sr-only" />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-2 w-full rounded-xl border border-dashed border-border-medium bg-surface-secondary px-4 py-8 text-center hover:bg-surface-hover transition-colors">
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-2 w-full rounded-md border border-dashed border-border-medium bg-surface-secondary px-4 py-8 text-center hover:bg-surface-hover transition-colors">
                       <FileUp className="w-6 h-6 text-text-muted mx-auto mb-2" />
                       <span className="block text-sm text-text-primary">{file ? file.name : '选择要上传的文件'}</span>
                       <span className="block text-xs text-text-muted mt-1">PDF、Word、Excel、TXT、Markdown、CSV、JSON，最大 20MB</span>

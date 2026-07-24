@@ -18,12 +18,12 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border-light">
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-text-primary flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
+          <div className="w-7 h-7 rounded-md bg-text-primary flex items-center justify-center">
+            <Brain className="w-3.5 h-3.5 text-white" />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-base font-bold text-text-primary">企库库</span>
-            <span className="text-[10px] text-text-muted tracking-wide uppercase">QiKuKu AI Brain</span>
+            <span className="text-base font-semibold text-text-primary tracking-tight">企库库</span>
+            <span className="text-[10px] text-text-muted">QiKuKu AI Brain</span>
           </div>
         </Link>
 

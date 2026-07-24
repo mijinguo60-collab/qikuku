@@ -488,15 +488,15 @@ export default function UserDetailPage() {
         {user.name || '未设置姓名'} · {user.id}
       </p>
 
-      {error && <p className="mt-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
+      {error && <p className="mt-4 rounded-md bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
       {actionNotice && (
-        <p className="mt-4 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-200">
+        <p className="mt-4 rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-200">
           {actionNotice}
         </p>
       )}
 
       <DetailBlock title="基本资料" rows={basicRows} />
-      <section className="mt-4 rounded-2xl bg-white/10 p-5">
+      <section className="mt-4 rounded-md bg-white/10 p-5">
         <h3 className="font-bold">账号状态和平台角色</h3>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-300">
           <span>账号状态：{getStatusLabel(user.status)}</span>
@@ -566,7 +566,7 @@ export default function UserDetailPage() {
         )}
         emptyLabel="该用户尚未加入企业。"
       />
-      <section className="mt-4 overflow-x-auto rounded-2xl bg-white/10 p-5">
+      <section className="mt-4 overflow-x-auto rounded-md bg-white/10 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="font-bold">登录 Session</h3>
@@ -619,7 +619,7 @@ export default function UserDetailPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="user-status-dialog-title"
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-md border border-white/10 bg-slate-900 p-6 shadow-2xl"
           >
             <h3 id="user-status-dialog-title" className="text-xl font-bold">
               {targetStatus === 'disabled' ? '确认禁用用户' : '确认恢复用户'}
@@ -629,7 +629,7 @@ export default function UserDetailPage() {
                 ? '禁用后，该用户的全部登录 Session 将立即失效，但不会删除用户、企业关系或业务数据。'
                 : '恢复后允许用户重新登录，但不会自动创建新的 Session。'}
             </p>
-            <dl className="mt-5 space-y-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300">
+            <dl className="mt-5 space-y-2 rounded-md bg-white/5 p-4 text-sm text-slate-300">
               <div className="flex justify-between gap-4">
                 <dt>用户姓名</dt>
                 <dd>{user.name || '未设置姓名'}</dd>
@@ -657,7 +657,7 @@ export default function UserDetailPage() {
               disabled={submitting}
               onChange={(event) => setReason(event.target.value)}
               placeholder="请填写本次操作原因"
-              className="mt-2 min-h-28 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none ring-sky-300/50 focus:ring-2 disabled:opacity-60"
+              className="mt-2 min-h-28 w-full rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none ring-sky-300/50 focus:ring-2 disabled:opacity-60"
             />
             <p className="mt-2 text-right text-xs text-slate-400">{reason.length}/200</p>
             {actionError && <p className="mt-3 text-sm text-red-200">{actionError}</p>}
@@ -696,7 +696,7 @@ export default function UserDetailPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="revoke-sessions-dialog-title"
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-md border border-white/10 bg-slate-900 p-6 shadow-2xl"
           >
             <h3 id="revoke-sessions-dialog-title" className="text-xl font-bold">
               确认强制退出全部会话
@@ -704,7 +704,7 @@ export default function UserDetailPage() {
             <p className="mt-3 text-sm leading-6 text-slate-300">
               执行后，该用户当前所有登录会话将立即失效，需要重新登录。此操作不会删除用户、企业关系或业务数据。
             </p>
-            <dl className="mt-5 space-y-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300">
+            <dl className="mt-5 space-y-2 rounded-md bg-white/5 p-4 text-sm text-slate-300">
               <div className="flex justify-between gap-4">
                 <dt>用户姓名</dt>
                 <dd>{user.name || '未设置姓名'}</dd>
@@ -719,7 +719,7 @@ export default function UserDetailPage() {
               </div>
             </dl>
             {selfLogoutConfirming && (
-              <div className="mt-5 rounded-xl border border-amber-300/30 bg-amber-300/10 p-4 text-sm text-amber-50">
+              <div className="mt-5 rounded-md border border-amber-300/30 bg-amber-300/10 p-4 text-sm text-amber-50">
                 <p className="font-medium">你正在退出当前管理员账号的全部会话。</p>
                 <p className="mt-1 leading-6">操作完成后，你将立即退出平台后台并需要重新登录。</p>
                 <label className="mt-4 block font-medium" htmlFor="self-logout-confirmation">
@@ -730,7 +730,7 @@ export default function UserDetailPage() {
                   value={selfLogoutConfirmation}
                   disabled={submitting}
                   onChange={(event) => setSelfLogoutConfirmation(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-amber-200/30 bg-slate-950 px-3 py-2 text-sm outline-none ring-amber-200/50 focus:ring-2 disabled:opacity-60"
+                  className="mt-2 w-full rounded-md border border-amber-200/30 bg-slate-950 px-3 py-2 text-sm outline-none ring-amber-200/50 focus:ring-2 disabled:opacity-60"
                 />
               </div>
             )}
@@ -744,7 +744,7 @@ export default function UserDetailPage() {
               disabled={submitting}
               onChange={(event) => setReason(event.target.value)}
               placeholder="请填写本次操作原因"
-              className="mt-2 min-h-28 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none ring-amber-200/50 focus:ring-2 disabled:opacity-60"
+              className="mt-2 min-h-28 w-full rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none ring-amber-200/50 focus:ring-2 disabled:opacity-60"
             />
             <p className="mt-2 text-right text-xs text-slate-400">{reason.length}/200</p>
             {actionError && <p className="mt-3 text-sm text-red-200">{actionError}</p>}
@@ -787,7 +787,7 @@ export default function UserDetailPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="platform-role-dialog-title"
-            className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl"
+            className="w-full max-w-lg rounded-md border border-white/10 bg-slate-900 p-6 shadow-2xl"
           >
             <h3 id="platform-role-dialog-title" className="text-xl font-bold">
               {platformRoleAction === 'grant'
@@ -799,7 +799,7 @@ export default function UserDetailPage() {
                 ? '授予后，该用户将可以访问企库库平台运营后台，包括用户、企业、套餐、订单和系统管理功能。此操作不会修改其企业成员角色。'
                 : '撤销后，该用户将不能继续访问平台运营后台，但其普通登录状态、企业成员关系和企业角色不会被修改。'}
             </p>
-            <dl className="mt-5 space-y-2 rounded-xl bg-white/5 p-4 text-sm text-slate-300">
+            <dl className="mt-5 space-y-2 rounded-md bg-white/5 p-4 text-sm text-slate-300">
               <div className="flex justify-between gap-4">
                 <dt>用户姓名</dt>
                 <dd>{user.name || '未设置姓名'}</dd>
@@ -822,11 +822,11 @@ export default function UserDetailPage() {
               </div>
             </dl>
             {platformRoleAction === 'grant' ? (
-              <p className="mt-4 rounded-xl border border-sky-300/30 bg-sky-300/10 p-3 text-sm leading-6 text-sky-50">
+              <p className="mt-4 rounded-md border border-sky-300/30 bg-sky-300/10 p-3 text-sm leading-6 text-sky-50">
                 平台管理员拥有平台运营后台的高权限访问能力，请确认授权对象和操作原因。
               </p>
             ) : (
-              <p className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50">
+              <p className="mt-4 rounded-md border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-50">
                 如果服务端无法安全确定授权前的原始角色，将拒绝撤销；前端不会猜测或填写恢复角色。
               </p>
             )}
@@ -840,7 +840,7 @@ export default function UserDetailPage() {
               disabled={submitting}
               onChange={(event) => setReason(event.target.value)}
               placeholder="请填写本次操作原因"
-              className="mt-2 min-h-28 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none ring-sky-300/50 focus:ring-2 disabled:opacity-60"
+              className="mt-2 min-h-28 w-full rounded-md border border-white/10 bg-slate-950 px-3 py-2 text-sm outline-none ring-sky-300/50 focus:ring-2 disabled:opacity-60"
             />
             <p className="mt-2 text-right text-xs text-slate-400">{reason.length}/200</p>
             {actionError && <p className="mt-3 text-sm text-red-200">{actionError}</p>}
@@ -887,7 +887,7 @@ function DetailBlock({
   emptyLabel?: string;
 }) {
   return (
-    <div className="mt-4 overflow-x-auto rounded-2xl bg-white/10 p-5">
+    <div className="mt-4 overflow-x-auto rounded-md bg-white/10 p-5">
       <h3 className="font-bold">{title}</h3>
       {rows.length ? (
         <div className="mt-3 min-w-[600px] space-y-2 text-sm text-slate-300">

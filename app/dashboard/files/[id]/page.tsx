@@ -73,7 +73,7 @@ export default async function FileDetailPage({ params }: { params: { id: string 
       <div className="card p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
           <div className="flex items-start gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-2xl bg-surface-tertiary flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-md bg-surface-tertiary flex items-center justify-center flex-shrink-0">
               <FileText className="w-6 h-6 text-text-secondary" />
             </div>
             <div className="min-w-0">
@@ -89,10 +89,10 @@ export default async function FileDetailPage({ params }: { params: { id: string 
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-          <div className="rounded-xl bg-surface-secondary p-3"><span className="block text-xs text-text-muted">所属知识空间</span><Link href={`/dashboard/knowledge-spaces/${document.knowledgeSpaceId}`} className="block text-sm text-text-primary font-medium mt-1 hover:text-accent-blue truncate"><FolderOpen className="inline w-3.5 h-3.5 mr-1" />{document.spaceName}</Link></div>
-          <div className="rounded-xl bg-surface-secondary p-3"><span className="block text-xs text-text-muted">文件状态</span><span className="block text-sm text-text-primary font-medium mt-1">{document.status}</span></div>
-          <div className="rounded-xl bg-surface-secondary p-3"><span className="block text-xs text-text-muted">敏感等级</span><span className="block text-sm text-text-primary font-medium mt-1"><ShieldCheck className="inline w-3.5 h-3.5 mr-1" />{document.sensitivityLevel}</span></div>
-          <div className="rounded-xl bg-surface-secondary p-3"><span className="block text-xs text-text-muted">文件大小 / 文本分块</span><span className="block text-sm text-text-primary font-medium mt-1"><Layers className="inline w-3.5 h-3.5 mr-1" />{formatFileSize(document.fileSize)} · {Number(document.chunkCount)} 块</span></div>
+          <div className="rounded-md bg-surface-secondary p-3"><span className="block text-xs text-text-muted">所属知识空间</span><Link href={`/dashboard/knowledge-spaces/${document.knowledgeSpaceId}`} className="block text-sm text-text-primary font-medium mt-1 hover:text-accent-blue truncate"><FolderOpen className="inline w-3.5 h-3.5 mr-1" />{document.spaceName}</Link></div>
+          <div className="rounded-md bg-surface-secondary p-3"><span className="block text-xs text-text-muted">文件状态</span><span className="block text-sm text-text-primary font-medium mt-1">{document.status}</span></div>
+          <div className="rounded-md bg-surface-secondary p-3"><span className="block text-xs text-text-muted">敏感等级</span><span className="block text-sm text-text-primary font-medium mt-1"><ShieldCheck className="inline w-3.5 h-3.5 mr-1" />{document.sensitivityLevel}</span></div>
+          <div className="rounded-md bg-surface-secondary p-3"><span className="block text-xs text-text-muted">文件大小 / 文本分块</span><span className="block text-sm text-text-primary font-medium mt-1"><Layers className="inline w-3.5 h-3.5 mr-1" />{formatFileSize(document.fileSize)} · {Number(document.chunkCount)} 块</span></div>
         </div>
       </div>
 
