@@ -14,7 +14,8 @@ import {
   type InvitationRow,
 } from '@/lib/invitations/company-invitations';
 import { verifyBoundPhone } from '@/lib/invitations/phone-binding';
-import { SmsProviderError, type SmsProvider } from './types';
+import { logSmsSendFailure, redactSmsProviderDiagnostic, redactSmsProviderMessage } from './diagnostics';
+import { SmsProviderError, type SmsFailureStage, type SmsProvider } from './types';
 
 type RequestMetadata = { ip: string; userAgent: string };
 type ChallengeRow = { id: string; codeHash: string; expiresAt: Date | string; attempts: number; maxAttempts: number };
@@ -59,16 +60,6 @@ export type SmsAuthServiceDependencies = {
 };
 
 function asDate(value: Date | string) { return value instanceof Date ? value : new Date(value); }
-
-function safeProviderDiagnostic(value: unknown, maximumLength = 256) {
-  if (typeof value !== 'string') return undefined;
-  return value
-    .replace(/[\r\n\t]/g, ' ')
-    .replace(/\+?86?1[3-9]\d{9}/g, '[redacted-phone]')
-    .replace(/\b\d{6}\b/g, '[redacted-code]')
-    .trim()
-    .slice(0, maximumLength) || undefined;
-}
 
 function getRateLimitReason(check: SmsRateLimitCheck, config: NonNullable<ReturnType<typeof getSmsSecurityConfig>>) {
   if (check.cooldownHit) return 'resend_cooldown' as const;
@@ -175,11 +166,16 @@ export async function issueSmsChallenge(
       await audit('SMS_CODE_REQUESTED', { ...auditValues, failureCategory: 'rate_limited' }, dependencies);
       return { ok: false, kind: 'rate_limited' };
     }
-  } catch { return { ok: false, kind: 'send_failed' }; }
+  } catch (error) {
+    logSmsSendFailure({ stage: 'internal_state_write', failureCategory: 'internal', errorType: error });
+    return { ok: false, kind: 'send_failed' };
+  }
 
   await audit('SMS_CODE_REQUESTED', auditValues, dependencies);
+  let failureStage: SmsFailureStage = 'sdk_call';
   try {
     const sent = await (dependencies.provider ?? getSmsProvider()).sendVerificationCode({ phoneE164, code });
+    failureStage = 'internal_state_write';
     await db.transactionAsync(async (tx: any) => {
       await lockPhone(tx, phoneHash);
       const update = await tx.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='SENT',"providerRequestId"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(sent.providerRequestId || null, sent.providerStatusCode || 'Ok', new Date().toISOString(), challengeId);
@@ -191,9 +187,18 @@ export async function issueSmsChallenge(
   } catch (error) {
     const failureCategory = error instanceof SmsProviderError ? error.category : 'unknown';
     const providerError = error instanceof SmsProviderError ? error : undefined;
-    const providerRequestId = safeProviderDiagnostic(providerError?.providerRequestId, 128);
-    const providerStatusCode = safeProviderDiagnostic(providerError?.providerStatusCode, 128);
-    const providerStatusMessage = safeProviderDiagnostic(providerError?.providerStatusMessage);
+    const providerRequestId = redactSmsProviderDiagnostic(providerError?.providerRequestId, 128);
+    const providerStatusCode = redactSmsProviderDiagnostic(providerError?.providerStatusCode, 128);
+    const providerStatusMessage = redactSmsProviderMessage(providerError?.providerStatusMessage);
+    logSmsSendFailure({
+      stage: providerError?.failureStage ?? failureStage,
+      failureCategory,
+      providerRequestId,
+      providerStatusCode,
+      providerStatusMessage,
+      httpStatusCode: providerError?.httpStatusCode,
+      errorType: error,
+    });
     await db.prepare(`UPDATE "SmsVerificationChallenge" SET "sendStatus"='FAILED',"failureCategory"=?,"providerRequestId"=?,"providerStatusCode"=?,"updatedAt"=? WHERE id=? AND "sendStatus"='PENDING'`).run(failureCategory, providerRequestId || null, providerStatusCode || null, new Date().toISOString(), challengeId).catch(() => {});
     await audit('SMS_CODE_SEND_FAILED', { ...auditValues, failureCategory, providerRequestId, providerStatusCode, providerStatusMessage }, dependencies);
     if (error instanceof SmsProviderError && error.category === 'configuration') return { ok: false, kind: 'configuration' };

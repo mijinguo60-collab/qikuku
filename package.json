@@ -21,6 +21,7 @@
     "test:unified-chat": "tsx scripts/test-unified-chat-policy.ts",
     "test:sms-auth": "tsx scripts/test-sms-auth.ts",
     "test:sms-rate-limit": "tsx scripts/test-sms-rate-limit.ts",
+    "test:sms-diagnostics": "tsx scripts/test-sms-provider-diagnostics.ts",
     "test:auth-pages": "tsx scripts/test-auth-pages.ts",
     "test:db-migration-tools": "tsx scripts/test-db-migration-tools.ts",
     "db:migrate-domestic": "tsx scripts/db/migrate-current-local.ts",

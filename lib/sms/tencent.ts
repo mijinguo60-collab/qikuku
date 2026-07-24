@@ -1,4 +1,5 @@
 import * as tencentcloud from 'tencentcloud-sdk-nodejs';
+import { redactSmsProviderDiagnostic, redactSmsProviderMessage } from './diagnostics';
 import { SmsProviderError, type SmsProvider, type SmsSendInput, type SmsSendResult } from './types';
 
 export type TencentSmsConfig = {
@@ -11,21 +12,36 @@ export type TencentSmsConfig = {
   endpoint: string;
 };
 
+export type TencentSmsClient = {
+  // The SDK request type is intentionally left opaque here so tests can use a
+  // local fake client without constructing or logging a real SDK request.
+  SendSms(input: any): Promise<any>;
+};
+
 export class TencentSmsProvider implements SmsProvider {
   private readonly config: TencentSmsConfig;
+  private readonly createClient: () => TencentSmsClient;
 
-  constructor(config: TencentSmsConfig) {
+  constructor(config: TencentSmsConfig, createClient?: () => TencentSmsClient) {
     this.config = config;
+    this.createClient = createClient ?? (() => new tencentcloud.sms.v20210111.Client({
+      credential: { secretId: this.config.secretId, secretKey: this.config.secretKey },
+      region: this.config.region,
+      profile: { httpProfile: { endpoint: this.config.endpoint, reqTimeout: 15 } },
+    }));
   }
 
   private static safeProviderText(value: unknown, maximumLength = 256) {
-    if (typeof value !== 'string') return undefined;
-    return value
-      .replace(/[\r\n\t]/g, ' ')
-      .replace(/\+?86?1[3-9]\d{9}/g, '[redacted-phone]')
-      .replace(/\b\d{6}\b/g, '[redacted-code]')
-      .trim()
-      .slice(0, maximumLength) || undefined;
+    return redactSmsProviderDiagnostic(value, maximumLength);
+  }
+
+  private static safeProviderMessage(value: unknown, maximumLength = 256) {
+    return redactSmsProviderMessage(value, maximumLength);
+  }
+
+  private static safeHttpStatusCode(value: unknown) {
+    const numeric = typeof value === 'number' ? value : Number.NaN;
+    return Number.isInteger(numeric) && numeric >= 100 && numeric <= 599 ? numeric : undefined;
   }
 
   private static failureCategory(code?: string) {
@@ -35,11 +51,7 @@ export class TencentSmsProvider implements SmsProvider {
   }
 
   async sendVerificationCode({ phoneE164, code }: SmsSendInput): Promise<SmsSendResult> {
-    const client = new tencentcloud.sms.v20210111.Client({
-      credential: { secretId: this.config.secretId, secretKey: this.config.secretKey },
-      region: this.config.region,
-      profile: { httpProfile: { endpoint: this.config.endpoint, reqTimeout: 15 } },
-    });
+    const client = this.createClient();
 
     try {
       const response = await client.SendSms({
@@ -56,25 +68,30 @@ export class TencentSmsProvider implements SmsProvider {
           '腾讯云未接受短信发送请求',
           TencentSmsProvider.failureCategory(code),
           code,
-          TencentSmsProvider.safeProviderText(result?.Message),
+          TencentSmsProvider.safeProviderMessage(result?.Message),
           TencentSmsProvider.safeProviderText(response.RequestId, 128),
+          { failureStage: 'tencent_business_rejected' },
         );
       }
       return {
         providerRequestId: TencentSmsProvider.safeProviderText(response.RequestId, 128),
         providerStatusCode: TencentSmsProvider.safeProviderText(result.Code, 128),
-        providerStatusMessage: TencentSmsProvider.safeProviderText(result.Message),
+        providerStatusMessage: TencentSmsProvider.safeProviderMessage(result.Message),
       };
     } catch (error) {
       if (error instanceof SmsProviderError) throw error;
-      const providerError = error as { code?: unknown; message?: unknown; requestId?: unknown; RequestId?: unknown };
+      const providerError = error as { code?: unknown; message?: unknown; requestId?: unknown; RequestId?: unknown; httpStatusCode?: unknown; statusCode?: unknown };
       const code = TencentSmsProvider.safeProviderText(providerError.code, 128);
       throw new SmsProviderError(
         '腾讯云短信发送失败',
         code ? TencentSmsProvider.failureCategory(code) : 'network',
         code,
-        TencentSmsProvider.safeProviderText(providerError.message),
+        TencentSmsProvider.safeProviderMessage(providerError.message),
         TencentSmsProvider.safeProviderText(providerError.requestId ?? providerError.RequestId, 128),
+        {
+          failureStage: 'sdk_call',
+          httpStatusCode: TencentSmsProvider.safeHttpStatusCode(providerError.httpStatusCode ?? providerError.statusCode),
+        },
       );
     }
   }
