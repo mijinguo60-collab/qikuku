@@ -16,3 +16,6 @@ prisma/dev.db
 prisma/dev.db-*
 docs
 README.md
+vitest.config.ts
+lib/billing/__tests__
+lib/ai/__tests__
