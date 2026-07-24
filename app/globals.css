@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply bg-surface-primary text-text-primary antialiased;
+    @apply bg-surface-canvas text-text-primary antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     font-optical-sizing: auto;
   }

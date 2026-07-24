@@ -290,7 +290,7 @@ export default function ChatPage() {
         </section>
       </div>}
 
-      <main className="flex-1 overflow-y-auto px-4 md:px-8 py-6"><div className="mx-auto max-w-4xl space-y-5">
+      <main className="flex-1 overflow-y-auto"><div className="mx-auto max-w-3xl px-4 md:px-8 py-6 space-y-5">
         {messages.map((message) => <article key={message.id} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
           {message.role === 'assistant' && <div className="mt-1 w-8 h-8 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0"><Brain className="w-4 h-4 text-accent-blue" /></div>}
           <div className={`max-w-[90%] ${message.role === 'user' ? 'rounded-2xl rounded-tr-md bg-text-primary text-white px-4 py-3' : 'bg-surface-secondary rounded-2xl px-4 py-3'}`}>

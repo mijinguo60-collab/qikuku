@@ -65,8 +65,8 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
     }
   }
 
-  return (
-    <aside className={`${collapsed ? 'w-16' : 'w-60'} h-screen sticky top-0 bg-surface-tertiary border-r border-border-light flex flex-col transition-all duration-200 flex-shrink-0 overflow-hidden`}>
+ return (
+    <aside className={`${collapsed ? 'w-16' : 'w-60'} h-screen sticky top-0 bg-white/60 backdrop-blur-lg border-r border-black/[0.06] flex flex-col transition-[width] duration-200 flex-shrink-0 overflow-hidden`}>
       {/* Logo */}
       <Link href="/dashboard" className="flex items-center gap-2.5 px-4 h-14 border-b border-border-light flex-shrink-0">
         <div className="w-7 h-7 rounded-lg bg-text-primary flex items-center justify-center flex-shrink-0">

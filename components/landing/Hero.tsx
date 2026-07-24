@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { ArrowRight, Play, Brain, FileText } from 'lucide-react';
 
 export default function Hero() {
-  return (
-    <section className="max-w-7xl mx-auto px-6 pt-20 pb-24 md:pt-28 md:pb-32">
+ return (
+    <section className="max-w-7xl mx-auto px-6 pt-24 pb-28 md:pt-32 md:pb-36">
       <div className="text-center max-w-3xl mx-auto mb-16">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-tertiary text-xs text-text-secondary mb-8">
           <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />

@@ -17,10 +17,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
    <CreditBalanceProvider><div className="flex min-h-screen bg-surface-canvas">
-      <Sidebar userRole={session.role || ''} />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+     <Sidebar userRole={session.role || ''} />
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 overflow-auto">
+          <div className="mx-auto w-full max-w-[1280px]">
+            {children}
+          </div>
+        </main>
+      </div>
     </div></CreditBalanceProvider>
   );
 }
