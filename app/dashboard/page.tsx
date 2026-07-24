@@ -64,7 +64,7 @@ export default async function DashboardPage() {
               { href: '/dashboard/files', icon: FileText, label: '上传文件', color: 'bg-success/10 text-success' },
             ].map((a, i) => (
               <Link key={i} href={a.href}
-                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-surface-secondary hover:bg-surface-hover transition-all text-center">
+                className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white border border-border-light shadow-light hover:shadow-hover hover:border-border-medium transition-[box-shadow,border-color] duration-150 text-center">
                 <div className={`w-10 h-10 rounded-xl ${a.color} flex items-center justify-center`}>
                   <a.icon className="w-5 h-5" />
                 </div>

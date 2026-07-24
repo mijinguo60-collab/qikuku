@@ -36,7 +36,8 @@ export default async function KnowledgeSpacesPage() {
                 <MoreHorizontal className="w-4 h-4 text-text-muted" />
               </span>
             </div>
-            <h3 className="text-sm font-semibold text-text-primary mb-1">{space.name}</h3>
+           <h3 className="text-sm font-semibold text-text-primary mb-1">{space.name}</h3>
+            <h3 className="text-sm font-semibold text-text-primary mb-1 group-hover:text-accent-blue transition-colors duration-150">{space.name}</h3>
             {space.description && <p className="text-xs text-text-muted mb-3 line-clamp-2">{space.description}</p>}
             <div className="flex items-center gap-4 text-xs text-text-muted">
               <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {space.fileCount} 个文件</span>

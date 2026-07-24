@@ -60,7 +60,7 @@ export default async function FilesPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-light">
+              <tr className="border-b border-border-light bg-surface-secondary">
                 <th className="text-left px-5 py-3 text-xs font-medium text-text-muted">文件名</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-text-muted">知识空间</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-text-muted">类型</th>
@@ -73,7 +73,7 @@ export default async function FilesPage() {
               {files.map((f: RowData) => {
                 const st = statusMap[f.status] || { label: f.status, color: 'bg-gray-50 text-gray-500' };
                 return (
-                  <tr key={f.id} className="border-b border-border-light hover:bg-surface-secondary transition-colors">
+                  <tr key={f.id} className="border-b border-border-light hover:bg-surface-hover transition-colors duration-150">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
                         <span className="text-base">{typeIcons[f.fileType] || '📁'}</span>

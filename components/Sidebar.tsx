@@ -88,7 +88,7 @@ export default function Sidebar({ userRole: propRole }: { userRole?: string }) {
                   <Link key={item.href} href={item.href} prefetch onClick={() => setPendingHref(item.href)}
                     className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-all ${
                       isActive
-                        ? 'bg-white text-text-primary font-medium shadow-light'
+    ? 'bg-white text-text-primary font-medium shadow-light ring-1 ring-black/[0.06]'
                         : 'text-text-secondary hover:text-text-primary hover:bg-surface-hover'
                     }`}
                     title={collapsed ? item.label : undefined}
