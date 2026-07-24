@@ -1,5 +1,7 @@
 import { getMembershipPlan, getModelBasePoints, PERMANENT_MODEL_ACCESS_POLICY, type CompanyPermanentEntitlement } from './commercial-config';
-import { BillingError } from "./subscriptions";
+import { BillingError, getCompanySubscription } from "./subscriptions";
+import { listActiveCompanyEntitlementGrants } from "./entitlement-grants";
+import { getDb } from '@/lib/db';
 
 export type ModelAccessSource = 'ACTIVE_MEMBERSHIP' | 'MONTHLY_PURCHASE_MILESTONE' | 'ANNUAL_PURCHASE' | 'SUPER_AGENT_SELF_COMPANY' | 'TRIAL_DEFAULT' | 'LEGACY_COMPATIBILITY';
 
@@ -196,22 +198,87 @@ export function getPermanentModelAccessPolicy() {
   return PERMANENT_MODEL_ACCESS_POLICY;
 }
 
+
+
+async function readQualifyingMonthlyBillingPeriods(
+  db: any,
+  companyId: string,
+): Promise<PaidMembershipPeriod[]> {
+  try {
+    const rows = await db.prepare(
+      `SELECT "orderId", "billingPeriodId", "planCode", "billingCycle", "periodStart", "periodEnd", "paymentStatus", "paymentCompletedAt", "refundedAt"
+       FROM "MembershipBillingPeriod"
+       WHERE "companyId" = ?
+       ORDER BY "periodStart" ASC`
+    ).all(companyId);
+    return (rows || []).map((r: any) => ({
+      planCode: r.planCode as 'pro' | 'enterprise',
+      billingCycle: r.billingCycle as 'monthly' | 'yearly',
+      periodStart: r.periodStart,
+      periodEnd: r.periodEnd,
+      paymentStatus: r.paymentStatus as 'paid' | 'refunded' | 'failed' | 'pending' | 'canceled',
+      paymentCompletedAt: r.paymentCompletedAt || null,
+      refundedAt: r.refundedAt || null,
+      orderId: r.orderId,
+      billingPeriodId: r.billingPeriodId || null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function isSuperAgentOwnedCompany(db: any, companyId: string): Promise<boolean> {
+  try {
+    const row = await db.prepare(
+      `SELECT u."platformRole" as "ownerPlatformRole"
+       FROM "Company" c
+       JOIN "User" u ON u.id = c."ownerUserId"
+       WHERE c.id = ?`
+    ).get(companyId);
+    return row?.ownerPlatformRole === 'SUPER_AGENT';
+  } catch {
+    return false;
+  }
+}
+
 export function canCompanyUseModelWithAccessResult(accessResult: ModelAccessResult, modelId: string) {
   return canCompanyUseModel(accessResult, modelId);
 }
 
 export async function assertCompanyModelAccess(
-  subscription: { planCode: string | null } | null | undefined,
-  permanentEntitlements: readonly CompanyPermanentEntitlement[] | undefined,
-  isSuperAgentSelfCompany: boolean,
+  companyId: string,
   modelId: string,
 ): Promise<void> {
+  const db = getDb();
+  const subscription = await getCompanySubscription(companyId, db);
+  if (!subscription) {
+    throw new BillingError('COMPANY_SUBSCRIPTION_MISSING', '当前企业尚未开通订阅', false);
+  }
+
+  const [permanentGrants, paidPeriods] = await Promise.all([
+    listActiveCompanyEntitlementGrants(companyId, 'ALL_MODELS_PERMANENT', db),
+    readQualifyingMonthlyBillingPeriods(db, companyId),
+  ]);
+
+  const permanentEntitlements: CompanyPermanentEntitlement[] = permanentGrants
+    .filter(g => !g.revokedAt)
+    .map(g => ({
+      type: 'ALL_MODELS_PERMANENT' as const,
+      effectiveAt: g.effectiveAt ? String(g.effectiveAt) : String(g.grantedAt),
+      revokedAt: g.revokedAt ? String(g.revokedAt) : null,
+      source: (g.sourceType || null) as CompanyPermanentEntitlement['source'],
+    }));
+
+  const isSuperAgentSelfCompany = await isSuperAgentOwnedCompany(db, companyId);
+
   const context: ModelAccessContext = {
-    companyId: '',
-    activePlanCode: (subscription?.planCode || null) as any,
-    permanentEntitlements,
+    companyId,
+    activePlanCode: (subscription.planCode || null) as any,
+    permanentEntitlements: permanentEntitlements.length ? permanentEntitlements : undefined,
     isSuperAgentSelfCompany,
+    paidMembershipPeriods: paidPeriods.length ? paidPeriods : undefined,
   };
+
   const accessResult = resolveCompanyModelAccess(context);
   if (!canCompanyUseModel(accessResult, modelId)) {
     throw new BillingError(

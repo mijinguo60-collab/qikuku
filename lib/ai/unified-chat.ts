@@ -7,7 +7,7 @@ import { getLlmConfig, isRuntimeLlmProvider, llmChatCompletion, llmChatCompletio
 import { appendChatMessage, ensureChatSession, SessionOwner } from '@/lib/chat-sessions';
 import { logAiCall } from '@/lib/ai/ai-logger';
 import { checkCreditBalance, consumeCredits } from '@/lib/billing/credits';
-import { getCompanySubscription, requireCompanySubscription } from '@/lib/billing/plans';
+import { requireCompanySubscription } from '@/lib/billing/plans';
 import { assertCompanyModelAccess } from '@/lib/billing/model-access';
 import { FEATURE_CREDITS } from '@/lib/billing/pricing';
 import { v4 as uuid } from 'uuid';
@@ -160,8 +160,7 @@ export async function handleUnifiedChatPost(request: NextRequest, options?: { re
 
     await requireCompanySubscription(owner.companyId);
 
-  const subscription = await getCompanySubscription(owner.companyId).catch(() => null);
-  await assertCompanyModelAccess(subscription, undefined, false, model.id);
+  await assertCompanyModelAccess(owner.companyId, model.id);
     const preflight = await checkCreditBalance(owner.companyId, requiredCredits);
     if (!preflight.ok) return NextResponse.json({ error: 'AI算力积分不足，请充值或升级套餐', requiredCredits, balance: preflight.balance, billingUrl: '/dashboard/billing' }, { status: 402 });
 
