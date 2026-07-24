@@ -52,6 +52,7 @@ function contentToText(value: unknown): string {
 export function extractModelContent(data: unknown): string {
   const result = data as Record<string, any>;
   const choice = Array.isArray(result?.choices) ? result.choices[0] : null;
+  // reasoning_content is internal model thinking — never treat it as the final answer.
   return contentToText(choice?.delta?.content)
     || contentToText(choice?.message?.content)
     || contentToText(choice?.text)
@@ -150,7 +151,12 @@ export async function* chatCompletionStream(options: ChatCompletionOptions): Asy
   }
 
   if (!fullContent.trim()) {
-    console.error('[LLM] Empty streamed model content', lastShape);
+    const firstChoiceKeys = (lastShape as Record<string, unknown>).firstChoiceKeys;
+    const hasChoices = Array.isArray(firstChoiceKeys) && firstChoiceKeys.length > 0;
+    console.error('[LLM] Empty streamed model content', { shape: lastShape });
+    if (hasChoices) {
+      throw new Error('模型未能生成最终回答，请尝试重新提问');
+    }
     throw new Error('模型接口返回空内容');
   }
   return { answer: fullContent, usage };
@@ -186,7 +192,18 @@ export async function chatCompletion(options: ChatCompletionOptions): Promise<Ch
   const data = await res.json();
   const answer = extractModelContent(data);
   if (!answer.trim()) {
-    console.error('[LLM] Empty model content', responseShape(data));
+    const shape = responseShape(data);
+    const choice = Array.isArray(data?.choices) ? data.choices[0] : null;
+    const hasReasoningOnly = choice?.message && typeof choice.message === 'object'
+      && 'reasoning_content' in choice.message
+      && !(choice.message.content);
+    if (hasReasoningOnly) {
+      console.error('[LLM] Model returned reasoning-only response — no final content', {
+        firstChoiceKeys: shape.firstChoiceKeys,
+      });
+      throw new Error('模型未能生成最终回答，请尝试重新提问');
+    }
+    console.error('[LLM] Empty model content', { shape });
     throw new Error('模型接口返回空内容');
   }
   return { answer, usage: usageFrom(data) };

@@ -3,6 +3,9 @@ import { buildOpenAiCompatibleEndpoint, extractProviderErrorMessage, providerSta
 
 const DEFAULT_SIZES = ['1024x1024', '1024x1792', '1792x1024'] as const;
 
+const IMAGE_GENERATION_TIMEOUT_MS = 120_000;
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 30_000;
+
 export interface ImageGenerationOptions {
   prompt: string;
   model?: string;
@@ -98,7 +101,21 @@ async function requestImage(options: ImageGenerationOptions, kind: 'generations'
     requestBody = JSON.stringify({ model, prompt: options.prompt, n: options.n || 1, size: options.size || process.env.IMAGE_DEFAULT_SIZE || '1024x1024', response_format: 'url' });
   }
 
-  const res = await fetch(url, { method: 'POST', headers, body: requestBody });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: requestBody,
+      signal: AbortSignal.timeout(IMAGE_GENERATION_TIMEOUT_MS),
+    });
+  } catch (error: any) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+      const providerLabel = kind === 'edits' ? '图生图' : '图片';
+      throw new Error(`${providerLabel}生成超时（${IMAGE_GENERATION_TIMEOUT_MS / 1000} 秒），请稍后重试`);
+    }
+    throw error;
+  }
 
   if (!res.ok) {
     const bodyText = await res.text();
