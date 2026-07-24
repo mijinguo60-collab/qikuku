@@ -45,6 +45,9 @@ RUN groupadd --system --gid 1001 qikuku \
 COPY --from=builder --chown=qikuku:qikuku /app/public ./public
 COPY --from=builder --chown=qikuku:qikuku /app/.next/standalone ./
 COPY --from=builder --chown=qikuku:qikuku /app/.next/static ./.next/static
+# Next's standalone tracing cannot discover node-gyp-build's runtime lookup
+# for argon2's native binary, so preserve the complete installed module.
+COPY --from=builder --chown=qikuku:qikuku /app/node_modules/argon2 ./node_modules/argon2
 USER qikuku
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
