@@ -1,0 +1,32 @@
+# One-off maintenance image. Reuse the same locked dependency installation as
+# the application build; its default command is the no-write ensure-plans dry-run.
+ARG NODE_VERSION=20.19.0
+
+FROM node:${NODE_VERSION}-bookworm-slim AS base
+WORKDIR /app
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates dumb-init \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM base AS build-deps
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM build-deps AS deps
+COPY package.json package-lock.json ./
+RUN npm ci
+
+FROM base AS runner
+RUN groupadd --system --gid 1001 qikuku \
+  && useradd --system --uid 1001 --gid qikuku --home-dir /app qikuku
+COPY --from=deps --chown=qikuku:qikuku /app/node_modules ./node_modules
+COPY --chown=qikuku:qikuku scripts/ensure-plans.ts ./scripts/ensure-plans.ts
+COPY --chown=qikuku:qikuku scripts/lib/maintenance-policy.ts ./scripts/lib/maintenance-policy.ts
+COPY --chown=qikuku:qikuku lib/billing ./lib/billing
+COPY --chown=qikuku:qikuku lib/deploy/production-env.ts ./lib/deploy/production-env.ts
+COPY --chown=qikuku:qikuku lib/strict-pg-tls.ts ./lib/strict-pg-tls.ts
+USER qikuku
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["./node_modules/.bin/tsx", "scripts/ensure-plans.ts"]
