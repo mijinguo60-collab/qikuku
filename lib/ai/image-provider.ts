@@ -3,7 +3,7 @@ import { buildOpenAiCompatibleEndpoint, extractProviderErrorMessage, providerSta
 
 const DEFAULT_SIZES = ['1024x1024', '1024x1792', '1792x1024'] as const;
 
-const IMAGE_GENERATION_TIMEOUT_MS = 120_000;
+const IMAGE_GENERATION_TIMEOUT_MS = 360_000;
 const IMAGE_DOWNLOAD_TIMEOUT_MS = 30_000;
 
 export interface ImageGenerationOptions {
