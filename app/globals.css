@@ -8,6 +8,7 @@
   body {
     @apply bg-surface-primary text-text-primary antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-optical-sizing: auto;
   }
   ::selection {
     @apply bg-accent-blue/20;

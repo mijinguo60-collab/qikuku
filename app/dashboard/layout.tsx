@@ -16,7 +16,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!session) redirect('/auth/login');
 
   return (
-    <CreditBalanceProvider><div className="flex min-h-screen bg-surface-primary">
+   <CreditBalanceProvider><div className="flex min-h-screen bg-surface-canvas">
       <Sidebar userRole={session.role || ''} />
       <main className="flex-1 overflow-auto">
         {children}
