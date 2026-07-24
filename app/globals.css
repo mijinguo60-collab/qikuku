@@ -17,30 +17,30 @@
 @layer components {
   .btn-primary {
     @apply bg-text-primary text-white px-5 py-2.5 rounded-xl font-medium text-sm
-           hover:bg-text-primary/90 transition-all duration-150
+           hover:bg-text-primary/90 transition-colors duration-150
            active:scale-[0.98];
   }
   .btn-secondary {
     @apply bg-white text-text-primary px-5 py-2.5 rounded-xl font-medium text-sm
            border border-border-light
-           hover:bg-surface-hover transition-all duration-150
+           hover:bg-surface-hover transition-colors duration-150
            active:scale-[0.98];
   }
   .btn-ghost {
     @apply text-text-secondary px-4 py-2 rounded-xl font-medium text-sm
-           hover:bg-surface-hover transition-all duration-150;
+           hover:bg-surface-hover transition-colors duration-150;
   }
   .input-primary {
     @apply w-full px-4 py-3 rounded-2xl border border-border-medium bg-white
            text-sm text-text-primary placeholder:text-text-muted
-           focus:outline-none focus:border-text-primary/20 focus:ring-0
-           transition-all duration-150;
+           focus:outline-none focus:border-accent-blue/40 focus-visible:ring-2 focus-visible:ring-accent-blue/30
+           transition-colors duration-150;
   }
   .card {
     @apply bg-white rounded-2xl border border-border-light shadow-light;
   }
   .card-hover {
-    @apply card hover:shadow-hover hover:border-border-medium transition-all duration-200;
+    @apply card hover:shadow-hover hover:border-border-medium transition-[box-shadow,border-color] duration-200;
   }
 }
 
@@ -73,4 +73,17 @@
 @keyframes typingBounce {
   0%, 80%, 100% { transform: scale(0.6); }
   40% { transform: scale(1); }
+}
+
+/* Reduced motion — Apple Design §14 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+  .typing-dots span { animation: none !important; }
+  .animate-spin { animation-duration: 1.5s !important; }
+  .animate-pulse { animation-duration: 3s !important; }
 }
