@@ -1,4 +1,4 @@
-import { getMembershipPlan, getModelBasePoints, PERMANENT_MODEL_ACCESS_POLICY, type CompanyPermanentEntitlement } from './commercial-config';
+import { getMembershipPlan, PERMANENT_MODEL_ACCESS_POLICY, type CompanyPermanentEntitlement } from './commercial-config';
 import { BillingError, getCompanySubscription } from "./subscriptions";
 import { listActiveCompanyEntitlementGrants } from "./entitlement-grants";
 import { getDb } from '@/lib/db';
@@ -164,15 +164,17 @@ export function resolveCompanyModelAccess(context: ModelAccessContext): ModelAcc
     return { accessScope: 'ALL_MODELS', isPermanent: true, source: 'LEGACY_COMPATIBILITY', qualifyingMonthlyPeriodCount: 0, qualifyingPaidMonths: 0, unlockedAt: permanentEntitlement.effectiveAt ? String(permanentEntitlement.effectiveAt) : null, allowedModels: 'ALL', reason: '企业已存在永久模型权益' };
   }
 
+  // Qualifying monthly periods unlock is independent of current planCode —
+  // it must remain in effect after a subscription expires.
+  const { qualifyingMonthlyPeriodCount } = countQualifyingMonthlyBillingPeriods(context.paidMembershipPeriods || []);
+  if (qualifyingMonthlyPeriodCount >= PERMANENT_MODEL_ACCESS_POLICY.monthlyPaidMonthsRequired) {
+    return { accessScope: 'ALL_MODELS', isPermanent: true, source: 'MONTHLY_PURCHASE_MILESTONE', qualifyingMonthlyPeriodCount, qualifyingPaidMonths: qualifyingMonthlyPeriodCount, unlockedAt: null, allowedModels: 'ALL', reason: '月卡累计达到永久解锁条件' };
+  }
+
   const activePlanCode = context.activePlanCode || null;
   if (activePlanCode === 'pro' || activePlanCode === 'enterprise') {
     if (context.paidMembershipPeriods?.some((period) => period.planCode === activePlanCode && period.billingCycle === 'yearly' && period.paymentStatus === 'paid' && !period.refundedAt)) {
       return { accessScope: 'ALL_MODELS', isPermanent: true, source: 'ANNUAL_PURCHASE', qualifyingMonthlyPeriodCount: 0, qualifyingPaidMonths: 0, unlockedAt: null, allowedModels: 'ALL', reason: '年卡支付成功后立即永久解锁全部模型' };
-    }
-
-    const { qualifyingMonthlyPeriodCount } = countQualifyingMonthlyBillingPeriods(context.paidMembershipPeriods || []);
-    if (qualifyingMonthlyPeriodCount >= PERMANENT_MODEL_ACCESS_POLICY.monthlyPaidMonthsRequired) {
-      return { accessScope: 'ALL_MODELS', isPermanent: true, source: 'MONTHLY_PURCHASE_MILESTONE', qualifyingMonthlyPeriodCount, qualifyingPaidMonths: qualifyingMonthlyPeriodCount, unlockedAt: null, allowedModels: 'ALL', reason: '月卡累计达到永久解锁条件' };
     }
 
     const currentPlan = getMembershipPlan(activePlanCode);
@@ -188,8 +190,9 @@ export function resolveCompanyModelAccess(context: ModelAccessContext): ModelAcc
 }
 
 export function canCompanyUseModel(accessResult: ModelAccessResult, modelId: string) {
+  // Permissions are checked against catalog model IDs.
+  // Pricing validation happens at credit-deduction time, not here.
   const resolvedModelId = modelId.replace(/-preview$/, '');
-  getModelBasePoints(resolvedModelId);
   if (accessResult.allowedModels === 'ALL') return true;
   return accessResult.allowedModels.includes(resolvedModelId);
 }

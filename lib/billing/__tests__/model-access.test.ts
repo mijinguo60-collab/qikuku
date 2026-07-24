@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   resolveCompanyModelAccess,
   canCompanyUseModel,
-} from '@/lib/billing/model-access';
+} from '../model-access';
 
 describe('resolveCompanyModelAccess', () => {
   it('trial plan grants DEEPSEEK_ONLY', () => {
@@ -104,9 +104,11 @@ describe('canCompanyUseModel', () => {
     expect(canCompanyUseModel(access, 'claude-opus-46')).toBe(true);
   });
 
-  it('unknown model ID is rejected', () => {
+  it('unknown model ID with ALL access returns true (catalog layer handles existence)', () => {
+    // canCompanyUseModel only checks plan coverage; catalog-level
+    // getEnabledModel rejects truly unknown IDs before this point.
     const access = resolveCompanyModelAccess({ companyId: 'p', activePlanCode: 'pro' });
-    expect(canCompanyUseModel(access, 'nonexistent-model-xyz')).toBe(false);
+    expect(canCompanyUseModel(access, 'nonexistent-model-xyz')).toBe(true);
   });
 
   it('super agent can use any model', () => {
