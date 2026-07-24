@@ -1,4 +1,5 @@
 import { getMembershipPlan, getModelBasePoints, PERMANENT_MODEL_ACCESS_POLICY, type CompanyPermanentEntitlement } from './commercial-config';
+import { BillingError } from "./subscriptions";
 
 export type ModelAccessSource = 'ACTIVE_MEMBERSHIP' | 'MONTHLY_PURCHASE_MILESTONE' | 'ANNUAL_PURCHASE' | 'SUPER_AGENT_SELF_COMPANY' | 'TRIAL_DEFAULT' | 'LEGACY_COMPATIBILITY';
 
@@ -197,4 +198,26 @@ export function getPermanentModelAccessPolicy() {
 
 export function canCompanyUseModelWithAccessResult(accessResult: ModelAccessResult, modelId: string) {
   return canCompanyUseModel(accessResult, modelId);
+}
+
+export async function assertCompanyModelAccess(
+  subscription: { planCode: string | null } | null | undefined,
+  permanentEntitlements: readonly CompanyPermanentEntitlement[] | undefined,
+  isSuperAgentSelfCompany: boolean,
+  modelId: string,
+): Promise<void> {
+  const context: ModelAccessContext = {
+    companyId: '',
+    activePlanCode: (subscription?.planCode || null) as any,
+    permanentEntitlements,
+    isSuperAgentSelfCompany,
+  };
+  const accessResult = resolveCompanyModelAccess(context);
+  if (!canCompanyUseModel(accessResult, modelId)) {
+    throw new BillingError(
+      'MODEL_ACCESS_DENIED',
+      '当前套餐暂不支持该模型，请升级套餐或完成模型解锁',
+      false,
+    );
+  }
 }
