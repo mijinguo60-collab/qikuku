@@ -21,21 +21,11 @@ const menuGroups = [
     ],
   },
   {
-    label: '业务工具',
-    items: [
-      { href: '/dashboard/content', icon: PenTool, label: '内容生成' },
-      { href: '/dashboard/training', icon: GraduationCap, label: '员工培训' },
-      { href: '/dashboard/sales', icon: TrendingUp, label: '销售助手' },
-      { href: '/dashboard/support', icon: Headphones, label: '客服助手' },
-    ],
-  },
-  {
     label: '管理',
     items: [
       { href: '/dashboard/settings', icon: Settings, label: '企业设置' },
       { href: '/dashboard/settings/models', icon: Brain, label: '模型状态' },
       { href: '/dashboard/team', icon: Users, label: '成员管理' },
-      { href: '/dashboard/leads', icon: BarChart3, label: '线索管理' },
       { href: '/dashboard/permissions', icon: Key, label: '权限管理' },
       { href: '/dashboard/security', icon: Shield, label: '安全审计' },
     ],
