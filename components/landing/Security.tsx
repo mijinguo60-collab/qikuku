@@ -20,7 +20,7 @@ export default function Security() {
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
         {items.map((item, i) => (
-          <div key={i} className="flex gap-4 p-5 rounded-2xl hover:bg-surface-secondary transition-colors">
+          <div key={i} className="flex gap-4 p-5 rounded-2xl hover:bg-surface-hover transition-colors duration-150">
             <div className="w-10 h-10 rounded-xl bg-surface-tertiary flex items-center justify-center flex-shrink-0">
               <item.icon className="w-5 h-5 text-text-secondary" />
             </div>
