@@ -14,9 +14,11 @@ class Checker(HTMLParser):
         super().__init__(convert_charrefs=False)
         self.errors = []
         self.warnings = []
+        self.stack = []
 
     def handle_starttag(self, tag, attrs):
         tag = tag.lower()
+        self.stack.append(tag)
         if tag in FORBIDDEN_TAGS:
             self.errors.append(f"forbidden tag: <{tag}>")
         for key, value in attrs:
@@ -25,6 +27,22 @@ class Checker(HTMLParser):
             if key.lower() == "style" and value:
                 if re.search(r"position\s*:\s*(fixed|absolute|sticky)|display\s*:\s*grid|@media|@keyframes", value, re.I):
                     self.errors.append("forbidden style rule")
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if self.stack:
+            self.stack.pop()
+
+    def handle_endtag(self, tag):
+        tag = tag.lower()
+        if self.stack:
+            self.stack.pop()
+
+    def handle_data(self, data):
+        if any(tag in {"code", "pre"} for tag in self.stack):
+            return
+        if re.search(r"(?<![A-Za-z0-9_])[,.!?;:](?![A-Za-z0-9_])", data):
+            self.warnings.append("ASCII punctuation found in visible prose")
 
 
 def main():
@@ -37,8 +55,6 @@ def main():
     check.feed(html)
     if not re.search(r'<span\s+leaf\s*=', html, re.I):
         check.errors.append("no <span leaf=...> text wrappers found")
-    if re.search(r"(?<![A-Za-z0-9_])[,.!?;:](?![A-Za-z0-9_])", html):
-        check.warnings.append("ASCII punctuation found outside likely identifiers")
     if "<html" in html.lower() or "<body" in html.lower():
         check.warnings.append("output should be a clean section fragment")
     for item in check.errors:
