@@ -1,4 +1,0 @@
-import { NextResponse } from 'next/server';
-import { isAlipayConfigured, parseAlipayWebhook } from '@/lib/payments/alipay';
-import { completePaidPayment } from '@/lib/payments/payment-service';
-export async function POST(request:Request) { if(!isAlipayConfigured()) return new NextResponse('fail',{status:503}); try { const body=await request.text(); const values=Object.fromEntries(new URLSearchParams(body)); const data=parseAlipayWebhook(values); if(!['TRADE_SUCCESS','TRADE_FINISHED'].includes(data.trade_status)) return new NextResponse('success'); await completePaidPayment(data.out_trade_no,'alipay',data.trade_no,Math.round(Number(data.total_amount)*100)); return new NextResponse('success'); } catch(error:any){ console.error('[ALIPAY_NOTIFY]',{message:error.message}); return new NextResponse('fail',{status:400}); } }

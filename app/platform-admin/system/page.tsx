@@ -1,1 +1,0 @@
-'use client';import{useEffect,useState}from'react';export default function Page(){const[s,setS]=useState<any>();useEffect(()=>{fetch('/api/platform-admin/system').then(r=>r.json()).then(setS)},[]);if(!s)return <p>加载中…</p>;return <><h2 className="text-2xl font-bold">系统状态</h2><pre className="mt-6 rounded-md bg-white/10 p-5 text-sm overflow-auto">{JSON.stringify(s,null,2)}</pre></>}
